@@ -1,0 +1,2650 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Speech Mentor AI — 직관적 텔레프롬프터 & 뉴럴 음성 멘토</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- JSZip CDN for native browser parsing of .pptx, .docx, .hwpx -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- Google Fonts: Inter & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'Inter', 'sans-serif'],
+            en: ['Inter', '"Noto Sans KR"', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      background-color: #f8fafc;
+      color: #0f172a;
+      font-family: 'Noto Sans KR', 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Teleprompter font scale */
+    .prompter-text {
+      font-size: var(--prompter-size, 1.25rem);
+      line-height: 1.95;
+    }
+
+    /* Inline cue pill styling */
+    .cue-gesture {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.14rem 0.55rem;
+      margin: 0 0.2rem;
+      border-radius: 9999px;
+      background-color: #eef2ff;
+      color: #4338ca;
+      border: 1px solid #c7d2fe;
+      font-size: 0.78rem;
+      font-weight: 700;
+      vertical-align: middle;
+      line-height: 1.4;
+      font-family: 'Noto Sans KR', 'Inter', sans-serif;
+    }
+    .cue-slide {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.14rem 0.55rem;
+      margin: 0 0.2rem;
+      border-radius: 9999px;
+      background-color: #fffbeb;
+      color: #b45309;
+      border: 1px solid #fde68a;
+      font-size: 0.78rem;
+      font-weight: 700;
+      vertical-align: middle;
+      line-height: 1.4;
+      font-family: 'Noto Sans KR', 'Inter', sans-serif;
+    }
+    .cue-pause {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+      padding: 0.12rem 0.5rem;
+      margin: 0 0.2rem;
+      border-radius: 9999px;
+      background-color: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      font-size: 0.75rem;
+      font-weight: 700;
+      vertical-align: middle;
+      line-height: 1.4;
+      font-family: 'Inter', 'Noto Sans KR', sans-serif;
+    }
+
+    /* Hide inline cues when toggle is off */
+    .hide-inline-cues .cue-gesture,
+    .hide-inline-cues .cue-slide,
+    .hide-inline-cues .cue-pause {
+      display: none !important;
+    }
+
+    /* Active sentence card smooth glow */
+    .segment-active {
+      background-color: #ffffff;
+      border-color: #6366f1 !important;
+      box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.18), 0 0 0 1px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Equalizer animation */
+    @keyframes eqBar {
+      0%, 100% { transform: scaleY(0.25); }
+      50% { transform: scaleY(1); }
+    }
+    .eq-bar {
+      transform-origin: bottom;
+      animation: eqBar 0.65s ease-in-out infinite;
+    }
+    .eq-bar:nth-child(2) { animation-delay: 0.15s; animation-duration: 0.52s; }
+    .eq-bar:nth-child(3) { animation-delay: 0.28s; animation-duration: 0.72s; }
+    .eq-paused .eq-bar {
+      animation: none;
+      transform: scaleY(0.25);
+    }
+
+    /* Recording pulse */
+    @keyframes recPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.45); }
+      50% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); }
+    }
+    .rec-pulse {
+      animation: recPulse 1.4s infinite;
+    }
+
+    /* Drag-over highlight */
+    .dropzone-active {
+      border-color: #4f46e5 !important;
+      background-color: #eef2ff !important;
+    }
+
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+  <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- ==================== MINIMAL TOP HEADER ==================== -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <!-- Left: Brand + Clean Environment Dropdown -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="flex items-center gap-2.5 shrink-0">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-sm shadow-indigo-500/20">
+            <i data-lucide="mic" class="w-4 h-4 text-white"></i>
+          </div>
+          <span class="font-extrabold text-slate-900 tracking-tight text-sm sm:text-base hidden sm:inline">Speech Mentor AI</span>
+        </div>
+
+        <div class="h-5 w-px bg-slate-200 hidden sm:block"></div>
+
+        <!-- Clean 10-Environment Dropdown -->
+        <div class="relative min-w-0">
+          <select id="env-select" aria-label="스피치 환경 선택" class="appearance-none bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs sm:text-sm font-bold rounded-xl pl-3 pr-8 py-2 border border-slate-200/80 outline-none focus:ring-2 focus:ring-indigo-500/30 transition cursor-pointer max-w-[165px] sm:max-w-[200px] truncate">
+            <option value="academic">🔬 학회 · 논문</option>
+            <option value="corporate">🏢 회사 · 비즈니스</option>
+            <option value="sermon">⛪ 종교 · 설교</option>
+            <option value="school">🎓 학교 · 강의</option>
+            <option value="marketing">📢 마케팅 · 세일즈</option>
+            <option value="ted">🎤 TED · 키노트</option>
+            <option value="investor">🚀 투자 피칭</option>
+            <option value="ceremony">💍 행사 · 축사</option>
+            <option value="creator">🎙️ 유튜브 · 방송</option>
+            <option value="custom">✏️ 직접 설정</option>
+          </select>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+      </div>
+
+      <!-- Right: Only 3 Sleek Action Buttons -->
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <button id="btn-open-upload" class="px-3 sm:px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold shadow-sm shadow-indigo-600/20 transition flex items-center gap-1.5">
+          <span>📎</span>
+          <span>원고 · 파일 첨부</span>
+        </button>
+
+        <button id="btn-open-settings" class="px-2.5 sm:px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5" title="미리 스피치 설정">
+          <span>⚙️</span>
+          <span class="hidden md:inline">설정</span>
+        </button>
+
+        <button id="btn-download-github" class="px-2.5 sm:px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-700 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5" title="GitHub 저장소 및 Pages 배포용 index.html 다운로드">
+          <span>📦</span>
+          <span class="hidden md:inline">GitHub 저장</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== CENTERED TELEPROMPTER MAIN STAGE (max-w-840px) ==================== -->
+  <main class="flex-1 w-full max-w-[840px] mx-auto px-4 sm:px-6 pt-6 pb-36">
+
+    <!-- Script Title & Clean Metadata -->
+    <div class="mb-5">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="meta-env-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+            🔬 학회 · 논문
+          </span>
+          <span id="meta-lang-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+            🇬🇧 en-GB
+          </span>
+          <span id="meta-duration-badge" class="text-xs font-semibold text-slate-500">
+            6개 섹션 · 약 3분 30초
+          </span>
+        </div>
+
+        <!-- Quick Full-Length Sample Switcher -->
+        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+          <button id="btn-sample-glp1" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition bg-white text-indigo-700 shadow-xs">
+            GLP-1 학회 풀버전
+          </button>
+          <button id="btn-sample-fastinv" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition text-slate-600 hover:text-slate-900">
+            FastInventory 전체 원본
+          </button>
+        </div>
+      </div>
+
+      <h1 id="script-title" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
+        GLP-1 Physiological Mechanism & Bioactive Modulators (국제 학회 풀버전)
+      </h1>
+    </div>
+
+    <!-- Slim Utility Bar Above Script -->
+    <div class="sticky top-16 z-30 bg-slate-50/95 backdrop-blur-md py-2.5 mb-5 border-y border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button id="toggle-inline-cues" class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition bg-indigo-50 border-indigo-200 text-indigo-700">
+          ✓ 제스처 인라인 표시
+        </button>
+        <button id="toggle-mentor-briefing" class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition bg-indigo-50 border-indigo-200 text-indigo-700">
+          ✓ 멘토 음성 브리핑
+        </button>
+        <button id="btn-open-qa" class="px-2.5 py-1.5 rounded-lg text-xs font-bold border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 transition">
+          🎓 Q&A 연습
+        </button>
+      </div>
+
+      <!-- Font Size Controls -->
+      <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5">
+        <button id="btn-font-dec" class="px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-md transition" title="글자 작게">A-</button>
+        <span id="font-size-label" class="text-[11px] font-mono font-semibold text-slate-400 px-1">100%</span>
+        <button id="btn-font-inc" class="px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-md transition" title="글자 크게">A+</button>
+      </div>
+    </div>
+
+    <!-- Live Pause / Shadowing Inline Banner (appears cleanly during pause/shadowing) -->
+    <div id="live-cue-banner" class="hidden sticky top-[122px] z-20 mb-4 px-4 py-2.5 rounded-2xl bg-slate-900 text-white shadow-lg flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span id="live-cue-icon" class="text-lg">⏸</span>
+        <span id="live-cue-label" class="text-xs sm:text-sm font-bold">청중과 시선을 맞추며 잠시 호흡을 고르세요</span>
+      </div>
+      <span id="live-cue-countdown" class="font-mono text-sm font-extrabold text-indigo-300 bg-white/10 px-2.5 py-0.5 rounded-lg">1.5s</span>
+    </div>
+
+    <!-- Teleprompter Flowing Full-Length Script Container -->
+    <div id="teleprompter-container" class="flex flex-col gap-8">
+      <!-- All sections & sentences rendered here in clean reading flow -->
+    </div>
+  </main>
+
+  <!-- ==================== FLOATING BOTTOM CONTROL DOCK ==================== -->
+  <div class="fixed bottom-4 inset-x-0 z-40 px-3 sm:px-6 pointer-events-none">
+    <div class="max-w-[820px] mx-auto bg-white/95 backdrop-blur-lg border border-slate-200/90 shadow-2xl shadow-slate-900/10 rounded-2xl p-2.5 sm:p-3 pointer-events-auto flex flex-col gap-2">
+      <!-- Thin Progress Line -->
+      <div class="flex items-center gap-3 px-1">
+        <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div id="dock-progress-bar" class="h-full w-0 bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300 rounded-full"></div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <div id="dock-eq" class="eq-paused flex items-end gap-0.5 h-3 w-3.5">
+            <span class="eq-bar w-0.5 h-full bg-indigo-500 rounded-full"></span>
+            <span class="eq-bar w-0.5 h-full bg-violet-500 rounded-full"></span>
+            <span class="eq-bar w-0.5 h-full bg-indigo-400 rounded-full"></span>
+          </div>
+          <span id="dock-progress-text" class="text-[11px] font-mono font-bold text-slate-600">섹션 1/6 · 00:00 / 03:30</span>
+        </div>
+      </div>
+
+      <!-- Dock Buttons -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+          <button id="btn-dock-play" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-extrabold shadow-sm shadow-indigo-600/25 transition flex items-center gap-2 shrink-0">
+            <span id="dock-play-icon">▶</span>
+            <span id="dock-play-label">전체 음성 멘토링</span>
+          </button>
+
+          <button id="btn-dock-stop" class="hidden px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 text-xs font-bold transition shrink-0">
+            ⏹ 정지
+          </button>
+
+          <button id="btn-dock-shadow" class="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 shrink-0" title="한 문장씩 듣고 따라 말하기">
+            <span>🔁</span>
+            <span class="hidden sm:inline">쉐도잉</span>
+          </button>
+
+          <button id="btn-dock-mic" class="px-3 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition flex items-center gap-1.5 shrink-0">
+            <span>🎙️</span>
+            <span>내 목소리 코칭</span>
+          </button>
+        </div>
+
+        <!-- Speed Toggle -->
+        <button id="btn-dock-speed" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-mono font-extrabold transition shrink-0" title="재생 속도 전환">
+          1.00x
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 1: FILE ATTACHMENT & FULL-LENGTH SCRIPT GENERATOR ==================== -->
+  <div id="modal-upload" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+    <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 flex flex-col">
+      <!-- Header -->
+      <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-md px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+            <span>📎</span><span>원고 입력 & 다양한 파일 첨부</span>
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">사진, PDF, PPT, Word, HWP, TXT를 첨부하면 끝까지 누락 없이 100% 스피치 악보로 변환합니다.</p>
+        </div>
+        <button id="btn-close-upload" class="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition">✕</button>
+      </div>
+
+      <div class="p-6 flex flex-col gap-5">
+        <!-- Drag & Drop / Multi-File Picker Zone -->
+        <div id="file-dropzone" class="relative border-2 border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50/70 rounded-2xl p-6 text-center transition cursor-pointer">
+          <input id="file-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.pdf,.pptx,.ppt,.docx,.doc,.hwpx,.hwp,.txt,.md,image/*" class="hidden" />
+          <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3 text-2xl">
+            📂
+          </div>
+          <p class="text-sm font-bold text-slate-800">파일을 여기로 드래그하거나 클릭하여 첨부하세요</p>
+          <p class="text-xs text-slate-500 mt-1">
+            사진(JPG·PNG·WEBP·HEIC · 카메라 촬영) · PDF · PowerPoint(PPTX·PPT) · Word(DOCX·DOC) · 한글(HWPX·HWP) · TXT
+          </p>
+          <div class="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+            <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-semibold text-slate-600">🖼️ 사진 OCR</span>
+            <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-semibold text-slate-600">📕 PDF 전체</span>
+            <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-semibold text-slate-600">📊 PPTX/PPT</span>
+            <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-semibold text-slate-600">📘 DOCX/DOC</span>
+            <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-semibold text-slate-600">📄 HWPX/HWP</span>
+            <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-semibold text-slate-600">📝 TXT/MD</span>
+          </div>
+        </div>
+
+        <!-- Attached Files List -->
+        <div id="attached-files-area" class="hidden flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700">첨부된 파일 (<span id="attached-count">0</span>)</span>
+            <button id="btn-clear-files" type="button" class="text-xs font-semibold text-rose-600 hover:underline">모두 제거</button>
+          </div>
+          <div id="attached-files-list" class="flex flex-col gap-2"></div>
+        </div>
+
+        <!-- Extracted / Pasted Text Area -->
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <label for="input-raw-text" class="text-xs font-bold text-slate-700">원고 텍스트 (직접 입력 또는 파일에서 자동 추출)</label>
+            <span id="text-stats-label" class="text-[11px] font-mono text-slate-500">0자 · 예상 0분 0초</span>
+          </div>
+          <textarea id="input-raw-text" rows="6" placeholder="한국어 또는 영어로 발표 원고, 논문 초록, 설교문 등을 입력하거나 위에서 사진/PDF/PPT/Word/HWP 파일을 첨부하세요..." class="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm text-slate-800 leading-relaxed"></textarea>
+        </div>
+
+        <!-- Target Language Quick Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">출력 스피치 언어 (자동 번역·각색)</label>
+            <select id="upload-target-lang" class="w-full p-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800">
+              <option value="en-GB">🇬🇧 영어 (영국/국제 학회)</option>
+              <option value="en-US">🇺🇸 영어 (미국식)</option>
+              <option value="ko-KR">🇰🇷 한국어</option>
+              <option value="ja-JP">🇯🇵 일본어</option>
+              <option value="es-ES">🇪🇸 스페인어</option>
+              <option value="fr-FR">🇫🇷 프랑스어</option>
+              <option value="de-DE">🇩🇪 독일어</option>
+              <option value="zh-CN">🇨🇳 중국어</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">멘토 코칭 언어</label>
+            <select id="upload-mentor-lang" class="w-full p-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800">
+              <option value="ko-KR">🇰🇷 한국어 멘토</option>
+              <option value="en-GB">🇬🇧 영어 멘토 (UK)</option>
+              <option value="en-US">🇺🇸 영어 멘토 (US)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Multi-Chunk Generation Progress Bar -->
+        <div id="gen-progress-box" class="hidden p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 flex flex-col gap-2">
+          <div class="flex items-center justify-between text-xs font-bold text-indigo-800">
+            <span id="gen-progress-text">전체 원고 분석 및 변환 중...</span>
+            <span id="gen-progress-pct" class="font-mono">0%</span>
+          </div>
+          <div class="w-full h-2 bg-indigo-100 rounded-full overflow-hidden">
+            <div id="gen-progress-bar" class="h-full w-0 bg-indigo-600 transition-all duration-300 rounded-full"></div>
+          </div>
+        </div>
+
+        <button id="btn-generate-full-script" type="button" class="w-full py-3.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-extrabold shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2">
+          <span id="gen-spinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+          <span id="gen-btn-label">✨ 100% 전체 원고로 스피치 악보 · 제스처 · 음성 가이드 생성</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DRAWER 2: PRE-SPEECH SETTINGS ==================== -->
+  <div id="drawer-settings" class="hidden fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-xs flex justify-end">
+    <div class="bg-white w-full max-w-md h-full overflow-y-auto shadow-2xl border-l border-slate-200 flex flex-col">
+      <div class="sticky top-0 bg-white/95 backdrop-blur-md px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-extrabold text-slate-900">⚙️ 스피치 · 음성 설정</h2>
+          <p class="text-xs text-slate-500 mt-0.5">뉴럴 보이스, 다국어, 맞춤 환경을 설정합니다.</p>
+        </div>
+        <button id="btn-close-settings" class="p-2 rounded-xl hover:bg-slate-100 text-slate-500">✕</button>
+      </div>
+
+      <div class="p-5 flex flex-col gap-5 flex-1">
+        <!-- Custom Environment Details -->
+        <div id="custom-env-box" class="hidden p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex flex-col gap-2">
+          <div class="text-xs font-extrabold text-indigo-800">✏️ 직접 환경 설정</div>
+          <input id="cfg-custom-venue" type="text" placeholder="발표 장소/상황 (예: 국제 바이오 학회)" class="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs" />
+          <input id="cfg-custom-audience" type="text" placeholder="청중 (예: 내분비학 전문의 200명)" class="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs" />
+          <input id="cfg-custom-tone" type="text" placeholder="원하는 어조 (예: 권위 있고 침착한 톤)" class="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">음성 엔진</label>
+          <select id="cfg-voice-engine" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800">
+            <option value="gemini-tts">✨ AI 뉴럴 스튜디오 보이스 (Gemini TTS)</option>
+            <option value="browser">🌐 브라우저 뉴럴 백업 (오프라인)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">화자 보이스 페르소나</label>
+          <select id="cfg-voice-persona" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800">
+            <option value="Charon">Charon — 권위·신뢰 남성 (학회·임원)</option>
+            <option value="Kore">Kore — 명료·지적 여성 (강의·데모)</option>
+            <option value="Puck">Puck — 에너지 프레젠터 (마케팅·TED)</option>
+            <option value="Aoede">Aoede — 따뜻한 울림 (설교·축사)</option>
+            <option value="Fenrir">Fenrir — 묵직한 리더십 (키노트·IR)</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">스피치 언어</label>
+            <select id="cfg-target-lang" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800">
+              <option value="en-GB">🇬🇧 en-GB</option>
+              <option value="en-US">🇺🇸 en-US</option>
+              <option value="ko-KR">🇰🇷 ko-KR</option>
+              <option value="ja-JP">🇯🇵 ja-JP</option>
+              <option value="es-ES">🇪🇸 es-ES</option>
+              <option value="fr-FR">🇫🇷 fr-FR</option>
+              <option value="de-DE">🇩🇪 de-DE</option>
+              <option value="zh-CN">🇨🇳 zh-CN</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">멘토 코칭 언어</label>
+            <select id="cfg-mentor-lang" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800">
+              <option value="ko-KR">🇰🇷 한국어</option>
+              <option value="en-GB">🇬🇧 영어 (UK)</option>
+              <option value="en-US">🇺🇸 영어 (US)</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200 cursor-pointer">
+          <span class="text-xs font-semibold text-slate-700">녹음 종료 시 AI 음성 코칭 자동 재생</span>
+          <input id="cfg-auto-feedback" type="checkbox" checked class="w-4 h-4 accent-indigo-600" />
+        </label>
+
+        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+          <span>뉴럴 음성 캐시: <strong id="settings-cache-count">0</strong>문장</span>
+          <button id="btn-clear-cache" type="button" class="text-indigo-600 font-bold hover:underline">캐시 비우기</button>
+        </div>
+      </div>
+
+      <div class="sticky bottom-0 bg-white border-t border-slate-100 p-4">
+        <button id="btn-save-settings" type="button" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-extrabold transition">
+          ✓ 설정 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DRAWER 3: LIVE MIC RECORDING & AI VOICE COACHING ==================== -->
+  <div id="drawer-mic" class="hidden fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-xs flex justify-end">
+    <div class="bg-white w-full max-w-md h-full overflow-y-auto shadow-2xl border-l border-slate-200 flex flex-col">
+      <div class="sticky top-0 bg-white/95 backdrop-blur-md px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <span>🎙️</span><span>내 목소리 녹음 & AI 음성 코칭</span>
+          </h2>
+          <p id="mic-drawer-sub" class="text-xs text-slate-500 mt-0.5">권장 115~125 WPM 기준으로 속도와 성량을 분석합니다.</p>
+        </div>
+        <button id="btn-close-mic" class="p-2 rounded-xl hover:bg-slate-100 text-slate-500">✕</button>
+      </div>
+
+      <div class="p-5 flex flex-col gap-4 flex-1">
+        <!-- Active Section Context -->
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+          <div class="text-[11px] font-bold text-indigo-600 mb-0.5">현재 연습 구간</div>
+          <div id="mic-section-title" class="text-sm font-extrabold text-slate-900">Section 1</div>
+        </div>
+
+        <!-- Waveform Visualizer -->
+        <div id="waveform-wrapper" class="relative w-full h-28 rounded-2xl bg-slate-900 overflow-hidden flex items-center justify-center">
+          <canvas id="waveform-canvas" class="w-full h-full block"></canvas>
+          <div id="waveform-placeholder" class="absolute inset-0 flex items-center justify-center text-xs text-slate-400 pointer-events-none px-4 text-center">
+            녹음 버튼을 누르고 화면의 대본을 읽어보세요
+          </div>
+          <div class="absolute top-2.5 right-3 flex items-center gap-2">
+            <span id="mic-wpm-badge" class="hidden px-2 py-0.5 rounded-md bg-rose-500/20 border border-rose-400/40 text-[11px] font-mono font-bold text-rose-200">0 WPM</span>
+            <span id="mic-timer" class="text-xs font-mono font-bold text-slate-300">00:00</span>
+          </div>
+        </div>
+
+        <!-- Energy Bar -->
+        <div class="flex items-center gap-2.5 text-xs">
+          <span class="text-slate-500 font-semibold shrink-0">성량 변화</span>
+          <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div id="mic-energy-bar" class="h-full w-0 bg-gradient-to-r from-emerald-400 via-indigo-500 to-rose-500 transition-all duration-100 rounded-full"></div>
+          </div>
+        </div>
+
+        <!-- Record Toggle Button -->
+        <button id="btn-toggle-record" class="w-full py-3.5 px-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-extrabold shadow-md shadow-rose-600/20 transition flex items-center justify-center gap-2">
+          <span id="rec-dot" class="w-2.5 h-2.5 rounded-full bg-white"></span>
+          <span id="rec-btn-label">녹음 시작하기</span>
+        </button>
+
+        <!-- Live Transcript -->
+        <div id="mic-transcript-box" class="hidden p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 max-h-28 overflow-y-auto leading-relaxed">
+          음성 인식 대기 중...
+        </div>
+
+        <!-- AI Coaching Result -->
+        <div id="mic-result-box" class="hidden flex flex-col gap-3 pt-3 border-t border-slate-200">
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div class="text-[10px] text-slate-500">속도</div>
+              <div id="res-wpm" class="text-base font-extrabold text-slate-900">120</div>
+              <div class="text-[10px] text-slate-400">WPM</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div class="text-[10px] text-slate-500">강조 폭</div>
+              <div id="res-energy" class="text-base font-extrabold text-indigo-600">우수</div>
+              <div class="text-[10px] text-slate-400">다이나믹</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div class="text-[10px] text-slate-500">적합도</div>
+              <div id="res-score" class="text-base font-extrabold text-emerald-600">94점</div>
+              <div class="text-[10px] text-slate-400">종합</div>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-indigo-50 border border-indigo-200">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-extrabold text-indigo-800">🔊 AI 튜터 음성 코칭</span>
+              <button id="btn-replay-coaching" class="text-xs font-bold text-indigo-600 hover:underline">다시 듣기</button>
+            </div>
+            <p id="res-feedback-text" class="text-xs sm:text-sm text-slate-800 leading-relaxed"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DRAWER 4: ACADEMIC REVIEWER Q&A SIMULATOR ==================== -->
+  <div id="drawer-qa" class="hidden fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-xs flex justify-end">
+    <div class="bg-white w-full max-w-xl h-full overflow-y-auto shadow-2xl border-l border-slate-200 flex flex-col">
+      <div class="sticky top-0 bg-white/95 backdrop-blur-md px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <span>🎓</span><span>학회 좌장(Reviewer) 압박 Q&A 시뮬레이터</span>
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">발표 후 예상 질문을 음성으로 듣고 마이크로 답변해 코칭받으세요.</p>
+        </div>
+        <button id="btn-close-qa" class="p-2 rounded-xl hover:bg-slate-100 text-slate-500">✕</button>
+      </div>
+
+      <div id="qa-drawer-list" class="p-5 flex flex-col gap-4">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== APPLICATION JAVASCRIPT ==================== -->
+  <script>
+    /**
+     * ============================================================================
+     * SPEECH MENTOR AI — MINIMALIST TELEPROMPTER, MULTIMODAL PARSER & FULL-LENGTH ENGINE
+     * ============================================================================
+     */
+
+    const LANG_META = {
+      'en-GB': { short: '🇬🇧 en-GB', name: 'British Academic/Business English' },
+      'en-US': { short: '🇺🇸 en-US', name: 'American English' },
+      'ko-KR': { short: '🇰🇷 ko-KR', name: 'Korean' },
+      'ja-JP': { short: '🇯🇵 ja-JP', name: 'Japanese' },
+      'es-ES': { short: '🇪🇸 es-ES', name: 'Spanish' },
+      'fr-FR': { short: '🇫🇷 fr-FR', name: 'French' },
+      'de-DE': { short: '🇩🇪 de-DE', name: 'German' },
+      'zh-CN': { short: '🇨🇳 zh-CN', name: 'Mandarin Chinese' },
+    };
+
+    const ENVIRONMENTS = {
+      academic:  { id: 'academic',  icon: '🔬', name: '학회 · 논문',     wpmMin: 115, wpmMax: 125, persona: 'Charon', directive: 'like a distinguished medical researcher presenting a peer-reviewed paper at an international conference with objective authority and crisp articulation' },
+      corporate: { id: 'corporate', icon: '🏢', name: '회사 · 비즈니스', wpmMin: 125, wpmMax: 135, persona: 'Charon', directive: 'like a calm, trustworthy corporate leader presenting an operational pilot with reassuring clarity' },
+      sermon:    { id: 'sermon',    icon: '⛪', name: '종교 · 설교',     wpmMin: 105, wpmMax: 115, persona: 'Aoede',  directive: 'like a warm, reverent speaker delivering a heartfelt sermon with resonant cadence and contemplative pauses' },
+      school:    { id: 'school',    icon: '🎓', name: '학교 · 강의',     wpmMin: 120, wpmMax: 130, persona: 'Kore',   directive: 'like an engaging university lecturer explaining concepts clearly with warmth and curiosity' },
+      marketing: { id: 'marketing', icon: '📢', name: '마케팅 · 세일즈', wpmMin: 135, wpmMax: 145, persona: 'Puck',   directive: 'like a charismatic product marketer delivering a persuasive pitch with punchy rhythm' },
+      ted:       { id: 'ted',       icon: '🎤', name: 'TED · 키노트',   wpmMin: 125, wpmMax: 135, persona: 'Aoede',  directive: 'like a world-class TED keynote speaker with intimate storytelling warmth' },
+      investor:  { id: 'investor',  icon: '🚀', name: '투자 피칭',       wpmMin: 130, wpmMax: 140, persona: 'Fenrir', directive: 'like a high-conviction founder pitching to venture capitalists with decisive clarity' },
+      ceremony:  { id: 'ceremony',  icon: '💍', name: '행사 · 축사',     wpmMin: 110, wpmMax: 120, persona: 'Aoede',  directive: 'like a warm, heartfelt speaker giving a memorable celebratory speech' },
+      creator:   { id: 'creator',   icon: '🎙️', name: '유튜브 · 방송',   wpmMin: 140, wpmMax: 155, persona: 'Puck',   directive: 'like an engaging YouTube creator speaking directly to one viewer with lively energy' },
+      custom:    { id: 'custom',    icon: '✏️', name: '직접 설정',       wpmMin: 120, wpmMax: 135, persona: 'Charon', directive: 'like a polished professional speaker tailored to the custom venue and audience' },
+    };
+
+    // ---------------------------------------------------------------------------
+    // 1. FULL-LENGTH BUILT-IN DEFAULT 1: GLP-1 ACADEMIC CONFERENCE (6 FULL SECTIONS, ~3.5 MIN)
+    // ---------------------------------------------------------------------------
+    const FULL_SCRIPT_GLP1 = {
+      title: "GLP-1 Physiological Mechanism & Bioactive Modulators (국제 학회 풀버전)",
+      environmentId: "academic",
+      targetLang: "en-GB",
+      mentorLang: "ko-KR",
+      scenes: [
+        {
+          badge: "Section 1",
+          title: "Title & Clinical Relevance (도입 및 연구 배경)",
+          mentorBriefing: "학회 발표의 첫 30초는 연구의 엄밀함을 보여주는 시간입니다. 간결하게 인사한 뒤, 합성 의약품 중심의 논의에서 벗어나 '내인성(endogenous) GLP-1 최적화'라는 연구의 핵심 질문을 선명하게 제시하세요.",
+          segments: [
+            {
+              text: "Good morning, esteemed colleagues. Thank you for the opportunity to present our latest review on the physiological cascade of Glucagon-Like Peptide-1—GLP-1—and the bioactive nutritional compounds that enhance its endogenous efficacy.",
+              emphasisWords: ["physiological cascade", "GLP-1", "bioactive nutritional compounds", "endogenous efficacy"],
+              gestureCue: "청중 좌우 아이컨택 · 양손 개방",
+              slideCue: "타이틀 슬라이드 고정",
+              pauseAfterMs: 1200,
+              intonation: "down",
+              phonetics: [{ term: "endogenous", phonetic: "en-DOJ-uh-nus" }]
+            },
+            {
+              text: "While pharmaceutical GLP-1 receptor agonists have transformed obesity and type 2 diabetes management, long-term adherence, cost, and gastrointestinal tolerability remain major clinical barriers. Consequently, understanding how to safely potentiate our body's own GLP-1 secretion has become a critical frontier in metabolic medicine.",
+              emphasisWords: ["transformed", "adherence", "tolerability", "our body's own GLP-1", "critical frontier"],
+              gestureCue: "손가락 3개로 임상 장벽 나열",
+              slideCue: "임상 처방 한계점 차트 지시",
+              pauseAfterMs: 1400,
+              intonation: "down",
+              phonetics: [{ term: "gastrointestinal", phonetic: "gas-troh-in-TES-ti-nul" }]
+            }
+          ]
+        },
+        {
+          badge: "Section 2",
+          title: "Endogenous GLP-1 Physiological Cascade (4대 표적 기관 기전)",
+          mentorBriefing: "장내 L-세포에서 분비된 GLP-1이 췌장·위·뇌(시상하부)·간 4곳에 미치는 조율된 대사 작용을 또박또박 끊어 읽으세요. 의학 용어 앞에서는 0.3초 숨을 고릅니다.",
+          segments: [
+            {
+              text: "Secreted primarily by intestinal enteroendocrine L-cells in the distal ileum and colon upon nutrient ingestion, native GLP-1 orchestrates four tightly coordinated metabolic actions across the human body.",
+              emphasisWords: ["enteroendocrine L-cells", "distal ileum", "four tightly coordinated"],
+              gestureCue: "손가락 4개 펼쳐 구조 예고",
+              slideCue: "인체 4대 표적 기관 모식도 지시",
+              pauseAfterMs: 1200,
+              intonation: "down",
+              phonetics: [
+                { term: "enteroendocrine", phonetic: "en-ter-oh-EN-doh-krin" },
+                { term: "ileum", phonetic: "IL-ee-um" }
+              ]
+            },
+            {
+              text: "First, in the pancreas, it stimulates glucose-dependent insulin secretion while suppressing inappropriate glucagon release—minimising the risk of hypoglycaemia. Second, in the stomach, it delays gastric emptying, flattening postprandial glucose excursions.",
+              emphasisWords: ["pancreas", "glucose-dependent", "hypoglycaemia", "stomach", "gastric emptying", "postprandial"],
+              gestureCue: "왼손(췌장) → 오른손(위) 시선 교차",
+              slideCue: "인슐린·글루카곤 곡선 강조",
+              pauseAfterMs: 1300,
+              intonation: "down",
+              phonetics: [
+                { term: "hypoglycaemia", phonetic: "hy-poh-gly-SEE-mee-uh" },
+                { term: "postprandial", phonetic: "pohst-PRAN-dee-ul" }
+              ]
+            },
+            {
+              text: "Third, via vagal afferents and the hypothalamus, it activates central satiety circuits to reduce appetite. Finally, in the liver, it indirectly attenuates hepatic gluconeogenesis and lipid accumulation.",
+              emphasisWords: ["hypothalamus", "central satiety", "liver", "hepatic gluconeogenesis"],
+              gestureCue: "손바닥으로 뇌-간 축 부드럽게 연결",
+              slideCue: "시상하부 포만감 경로 하이라이트",
+              pauseAfterMs: 1500,
+              intonation: "down",
+              phonetics: [
+                { term: "hypothalamus", phonetic: "hy-poh-THAL-uh-mus" },
+                { term: "gluconeogenesis", phonetic: "gloo-koh-nee-oh-JEN-uh-sis" }
+              ]
+            }
+          ]
+        },
+        {
+          badge: "Section 3",
+          title: "The DPP-4 Degradation Bottleneck (반감기 2분의 생리적 한계)",
+          mentorBriefing: "목소리 톤을 반 톤 낮추어 핵심 병목인 '혈장 반감기 2분 미만'을 부각하세요. 청중이 다음 섹션의 해결책(활성 성분)에 몰입하게 만드는 전환점입니다.",
+          segments: [
+            {
+              text: "However, endogenous GLP-1 faces an extraordinary physiological bottleneck. Immediately after entering circulation, it is cleaved and inactivated by the ubiquitous enzyme DPP-4—Dipeptidyl Peptidase-4.",
+              emphasisWords: ["However", "physiological bottleneck", "cleaved and inactivated", "DPP-4"],
+              gestureCue: "However에서 0.5초 정지 · 양손 반전",
+              slideCue: "DPP-4 효소 절단 도식 지시",
+              pauseAfterMs: 1300,
+              intonation: "down",
+              phonetics: [{ term: "Dipeptidyl Peptidase-4", phonetic: "dy-PEP-ti-dil PEP-ti-dayz four" }]
+            },
+            {
+              text: "This rapid enzymatic breakdown results in a plasma half-life of less than two minutes—meaning fewer than fifteen percent of secreted molecules ever reach systemic target receptors intact.",
+              emphasisWords: ["less than two minutes", "fewer than fifteen percent", "intact"],
+              gestureCue: "엄지·검지로 짧은 2분 간격 시각화",
+              slideCue: "혈중 농도 급감 그래프 피크 지시",
+              pauseAfterMs: 1600,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        },
+        {
+          badge: "Section 4",
+          title: "Three Nutritional Pathways for GLP-1 Optimization (핵심 활성 성분 3대 경로)",
+          mentorBriefing: "논문의 핵심 하이라이트입니다. 1) 발효성 식이섬유(SCFA→FFAR2/3), 2) 생리활성 펩타이드(유청단백·글루타민), 3) 폴리페놀·알칼로이드(베르베린·EGCG 이중 기전)의 인과관계를 분명히 끊어 전달하세요.",
+          segments: [
+            {
+              text: "To overcome this bottleneck nutritionally, our systematic analysis identifies three distinct bioactive pathways. First, fermentable dietary fibres—particularly inulin, resistant starch, and oat beta-glucan.",
+              emphasisWords: ["three distinct bioactive pathways", "First", "fermentable dietary fibres", "inulin", "beta-glucan"],
+              gestureCue: "손가락 1 제시 · 명확한 구조화",
+              slideCue: "3대 영양 경로 비교표 1행 지시",
+              pauseAfterMs: 1100,
+              intonation: "down",
+              phonetics: [{ term: "inulin", phonetic: "IN-yoo-lin" }]
+            },
+            {
+              text: "Colonic microbiota ferment these fibres into short-chain fatty acids—acetate, propionate, and butyrate—which bind directly to FFAR2 and FFAR3 receptors on L-cells, driving sustained GLP-1 synthesis.",
+              emphasisWords: ["short-chain fatty acids", "FFAR2 and FFAR3", "sustained GLP-1 synthesis"],
+              gestureCue: "발효 → 수용체 결합 흐름 손짓",
+              slideCue: "SCFA-FFAR 수용체 활성화 화살표",
+              pauseAfterMs: 1300,
+              intonation: "down",
+              phonetics: [{ term: "butyrate", phonetic: "BYOO-tuh-rayt" }]
+            },
+            {
+              text: "Second, specific bioactive peptides and amino acids—notably hydrolysed whey protein and L-glutamine. Unlike slow fibre fermentation, these trigger rapid calcium-dependent L-cell depolarization, producing an immediate pre-meal GLP-1 surge.",
+              emphasisWords: ["Second", "whey protein", "L-glutamine", "L-cell depolarization", "immediate pre-meal"],
+              gestureCue: "손가락 2 제시 · 즉각적 속도감 강조",
+              slideCue: "식전 유청단백 GLP-1 급등 곡선",
+              pauseAfterMs: 1200,
+              intonation: "down",
+              phonetics: [{ term: "depolarization", phonetic: "dee-poh-luh-ry-ZAY-shun" }]
+            },
+            {
+              text: "Third, plant polyphenols and alkaloids—specifically Berberine and green tea EGCG. Remarkably, these compounds exhibit a dual mechanism: stimulating intestinal L-cell secretion while exerting mild, natural DPP-4 inhibition to extend active peptide stability.",
+              emphasisWords: ["Third", "Berberine", "EGCG", "dual mechanism", "natural DPP-4 inhibition"],
+              gestureCue: "왼손(분비 촉진) + 오른손(분해 억제) 시너지",
+              slideCue: "이중 기전(Dual Mechanism) 도표 강조",
+              pauseAfterMs: 1500,
+              intonation: "down",
+              phonetics: [
+                { term: "Berberine", phonetic: "BER-buh-reen" },
+                { term: "alkaloids", phonetic: "AL-kuh-loydz" }
+              ]
+            }
+          ]
+        },
+        {
+          badge: "Section 5",
+          title: "Bioavailability & Microbiome Synergy (생체이용률과 장내 국소 작용)",
+          mentorBriefing: "심사위원들이 가장 먼저 지적할 '경구 생체이용률 한계'를 발표 중에 선제적으로 짚어주면 학술적 방어력이 크게 올라갑니다.",
+          segments: [
+            {
+              text: "A frequent question regarding Berberine and polyphenols is their low systemic oral bioavailability. Crucially, however, enteroendocrine L-cells and mucosal DPP-4 are densely concentrated within the intestinal lumen itself.",
+              emphasisWords: ["low systemic oral bioavailability", "Crucially", "intestinal lumen itself"],
+              gestureCue: "손바닥을 펼쳐 반론을 여유롭게 수용",
+              slideCue: "장 점막 국소 농도 단면도 지시",
+              pauseAfterMs: 1300,
+              intonation: "down",
+              phonetics: [{ term: "bioavailability", phonetic: "by-oh-uh-vay-luh-BIL-ih-tee" }]
+            },
+            {
+              text: "Therefore, these compounds do not require high plasma levels to be effective; they act locally via paracrine signalling while selectively enriching Akkermansia and SCFA-producing bacteria—creating a self-reinforcing metabolic loop.",
+              emphasisWords: ["act locally", "paracrine signalling", "Akkermansia", "self-reinforcing"],
+              gestureCue: "양손으로 순환 고리(Loop) 동작",
+              slideCue: "장내 미생물 시너지 루프 슬라이드",
+              pauseAfterMs: 1400,
+              intonation: "down",
+              phonetics: [
+                { term: "paracrine", phonetic: "PAR-uh-krin" },
+                { term: "Akkermansia", phonetic: "ak-er-MAN-see-uh" }
+              ]
+            }
+          ]
+        },
+        {
+          badge: "Section 6",
+          title: "Conclusion & Clinical Perspective (결론 및 임상적 의의)",
+          mentorBriefing: "과장 없는 객관적 선 긋기가 학회 발표의 품격을 결정합니다. 천연 성분의 보완적 가치를 단호히 정리한 뒤, 마지막 질문 유도 문장에서 여유로운 미소를 지으세요.",
+          segments: [
+            {
+              text: "In conclusion, nutritional modulators do not replicate the supraphysiological potency of injectable GLP-1 receptor agonists. Rather, combining fermentable fibres, bioactive peptides, and dual-acting polyphenols offers a synergistic, well-tolerated, and sustainable strategy for prediabetes management and post-pharmacotherapy maintenance.",
+              emphasisWords: ["do not replicate", "supraphysiological", "synergistic", "sustainable strategy", "post-pharmacotherapy maintenance"],
+              gestureCue: "차분히 선을 긋고 양손으로 핵심 가치 통합",
+              slideCue: "Take-home Message 결론 슬라이드",
+              pauseAfterMs: 1600,
+              intonation: "down",
+              phonetics: [{ term: "supraphysiological", phonetic: "soo-pruh-fiz-ee-uh-LOJ-ih-kul" }]
+            },
+            {
+              text: "Thank you very much for your attention. I would now be delighted to take your questions.",
+              emphasisWords: ["Thank you", "delighted to take your questions"],
+              gestureCue: "양손바닥 위로 열어 Q&A 환영",
+              slideCue: "화면에서 시선 떼고 좌장·청중 정면 응시",
+              pauseAfterMs: 1200,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        }
+      ]
+    };
+
+    // ---------------------------------------------------------------------------
+    // 2. FULL-LENGTH BUILT-IN DEFAULT 2: COMPLETE 10-SECTION FASTINVENTORY SCRIPT
+    // ---------------------------------------------------------------------------
+    const FULL_SCRIPT_FASTINVENTORY = {
+      title: "FastInventory UK Field Service Pilot — 전체 10개 섹션 원본",
+      environmentId: "corporate",
+      targetLang: "en-GB",
+      mentorLang: "ko-KR",
+      scenes: [
+        {
+          badge: "1. Opening",
+          title: "Opening (도입 및 인사)",
+          mentorBriefing: "감사 인사로 차분히 시작하며, 영국 현장 엔지니어의 실질적인 재고·반품 과제를 해결하기 위해 만든 독립 파일럿임을 명확히 전달하세요.",
+          segments: [
+            {
+              text: "Thank you for the opportunity to demonstrate FastInventory. I developed this independent pilot to address practical inventory and returns challenges faced by field service engineers in the UK.",
+              emphasisWords: ["FastInventory", "independent pilot", "practical inventory and returns challenges", "UK"],
+              gestureCue: "청중 전체 아이컨택 · 가슴 높이 손 모으기",
+              slideCue: "FastInventory 타이틀 화면 표시",
+              pauseAfterMs: 1200,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        },
+        {
+          badge: "2. Why I built it",
+          title: "Why I built it (개발 배경)",
+          mentorBriefing: "'most of the working day'로 시간 소모의 체감도를 높이고, 'However' 뒤에 잠시 멈춰 시스템 기록과 실물 재고의 불일치를 강조하세요.",
+          segments: [
+            {
+              text: "Currently, inventory checking is often a manual process. It can take an engineer most of the working day. However, the recorded inventory does not always match the stock an engineer physically holds.",
+              emphasisWords: ["manual process", "most of the working day", "However", "not always match", "physically holds"],
+              gestureCue: "왼손(시스템 기록) vs 오른손(실물 재고) 대비",
+              slideCue: "현재 수동 재고 점검 프로세스 슬라이드",
+              pauseAfterMs: 1400,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        },
+        {
+          badge: "3. Missing parts",
+          title: "Missing or misallocated parts (누락·오배정 부품)",
+          mentorBriefing: "불평이 아닌 객관적 사실 전달(Fact-based) 톤을 유지하며 병원 직배송 사례를 담담히 설명하세요.",
+          segments: [
+            {
+              text: "For example, a part may be shipped directly to a hospital but not received, while it still appears in the engineer's inventory. This makes accurate stock checking and sharing parts between engineers more difficult.",
+              emphasisWords: ["shipped directly", "not received", "still appears", "sharing parts"],
+              gestureCue: "병원 직배송 → 미수령 흐름 한 손으로 제시",
+              slideCue: "오배정 부품 사례 도식 지시",
+              pauseAfterMs: 1300,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        },
+        {
+          badge: "4. byBox return",
+          title: "The byBox return issue (byBox 반품 추적 공백)",
+          mentorBriefing: "엔지니어 손을 떠난 부품이 물류 과정에서 계속 할당된 채 남아있는 모순을 분명히 짚어주세요.",
+          segments: [
+            {
+              text: "There is a similar issue with returns. A part placed in a byBox collection point may still remain assigned to the engineer during the logistics process, even though the engineer no longer has it.",
+              emphasisWords: ["returns", "byBox", "still remain assigned", "even though", "no longer has it"],
+              gestureCue: "앞에 내려놓는 동작 → 양손 가볍게 털어내기",
+              slideCue: "byBox 반품 공백 구간 하이라이트",
+              pauseAfterMs: 1300,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        },
+        {
+          badge: "5. The objective",
+          title: "The objective (핵심 목표 3가지)",
+          mentorBriefing: "에너지를 15% 올리고 3가지 목표(시간 절감, 가시성 개선, 추적성 강화)를 손가락으로 세며 또박또박 끊어 읽으세요.",
+          segments: [
+            {
+              text: "My aim is to reduce unnecessary time spent checking stock, improve the visibility of available parts, and strengthen traceability for part usage, returns and disposal.",
+              emphasisWords: ["reduce", "improve the visibility", "strengthen traceability"],
+              gestureCue: "손가락 1 · 2 · 3 차례로 펼치기",
+              slideCue: "3대 목표 아이콘 슬라이드 지시",
+              pauseAfterMs: 1400,
+              intonation: "down",
+              phonetics: [{ term: "traceability", phonetic: "tray-suh-BIL-ih-tee" }]
+            }
+          ]
+        },
+        {
+          badge: "6. Live demo",
+          title: "Live demonstration (라이브 워크플로우 시연)",
+          mentorBriefing: "화면 조작과 목소리 박자를 맞추기 위해 속도를 약간 늦추고, First · Next 연결어를 또박또박 강조하세요.",
+          segments: [
+            {
+              text: "Let me show you the Pilot workflow. First, the engineer registers their details. Next, they can scan a part using the camera or a photo, then choose to add it to stock or record its use. The Inventory tab shows locally recorded items, and the Returns tab demonstrates a return tracking process.",
+              emphasisWords: ["Pilot workflow", "First", "Next", "scan a part", "Inventory tab", "Returns tab"],
+              gestureCue: "검지 대신 손바닥을 펴서 화면 탭 지시",
+              slideCue: "라이브 데모 앱 화면 전환 (Inventory → Returns)",
+              pauseAfterMs: 1400,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        },
+        {
+          badge: "7. Traceability",
+          title: "Returns and traceability (반품 단계별 기록)",
+          mentorBriefing: "현재 기록이 실제 물류 시스템 확정이 아닌 로컬 시연용 기록임을 명확히 구분해 오해를 방지하세요.",
+          segments: [
+            {
+              text: "The pilot is designed to deduct a returned part from available engineer stock and record stages such as return created, collection, transit and receipt. At this stage, these are local demonstration records, not confirmations from the company's logistics systems.",
+              emphasisWords: ["deduct", "return created, collection, transit and receipt", "local demonstration records", "not confirmations"],
+              gestureCue: "4단계 흐름을 왼→오른쪽으로 부드럽게 이동",
+              slideCue: "반품 상태 타임라인 UI 지시",
+              pauseAfterMs: 1400,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        },
+        {
+          badge: "8. On-device",
+          title: "On-device approach (보안 및 회사 정책 준수)",
+          mentorBriefing: "보안 민감도가 높은 구간입니다. 목소리를 반 톤 낮추고 부정어 'not'을 명확히 끊어 신뢰를 구축하세요.",
+          segments: [
+            {
+              text: "To respect company policy, the current pilot stores information on the device. Imported parts records are saved locally for demonstration purposes. This is not a live corporate database and it does not automatically synchronise inventory between engineers.",
+              emphasisWords: ["respect company policy", "on the device", "not a live corporate database", "does not automatically synchronise"],
+              gestureCue: "신중한 저음 · 양손을 안정적으로 모으기",
+              slideCue: "로컬 온디바이스 보안 아키텍처 도식",
+              pauseAfterMs: 1400,
+              intonation: "down",
+              phonetics: [{ term: "synchronise", phonetic: "SING-kruh-nyz" }]
+            }
+          ]
+        },
+        {
+          badge: "9. Integration",
+          title: "Integration approach (기존 시스템 연동 방향)",
+          mentorBriefing: "기존 사내 앱을 대체하려는 것이 아니라 IT·보안·운영 검토를 거쳐 승인 시 연동 가능하다는 협력적 태도를 보여주세요.",
+          segments: [
+            {
+              text: "FastInventory is not intended to replace existing company applications or processes. If the company approves, the workflow could potentially be connected to authorised inventory and logistics systems, subject to IT, Security and operational review.",
+              emphasisWords: ["not intended to replace", "If the company approves", "IT, Security and operational review"],
+              gestureCue: "양손을 가슴 앞에서 부드럽게 옆으로 벌리기",
+              slideCue: "향후 API 연동 검토 로드맵 표시",
+              pauseAfterMs: 1400,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        },
+        {
+          badge: "10. Closing",
+          title: "Closing (마무리 및 피드백 요청)",
+          mentorBriefing: "따뜻하고 열린 태도로 마무리하며, 마지막 'Thank you' 전에 1초 멈춤을 두어 여유를 남기세요.",
+          segments: [
+            {
+              text: "Today, I am presenting the operational problem and a possible solution, not asking for immediate adoption of an unsupported app. I would appreciate your feedback on the workflow, the ownership and return process, and the most valuable next steps. Thank you.",
+              emphasisWords: ["operational problem", "possible solution", "appreciate your feedback", "most valuable next steps", "Thank you"],
+              gestureCue: "양손바닥을 위로 향해 여는 피드백 유도 제스처",
+              slideCue: "Q&A 및 피드백 요청 슬라이드",
+              pauseAfterMs: 1500,
+              intonation: "down",
+              phonetics: []
+            }
+          ]
+        }
+      ]
+    };
+
+    // ---------------------------------------------------------------------------
+    // 3. ACADEMIC REVIEWER Q&A DATA
+    // ---------------------------------------------------------------------------
+    const REVIEWER_QA_LIST = [
+      {
+        id: 'qa-1',
+        reviewer: 'Prof. Sarah Jenkins (좌장 · 내분비대사학)',
+        tag: '생체이용률 한계',
+        questionEn: "While Berberine and EGCG show notable DPP-4 inhibition in vitro, their oral bioavailability in humans is notoriously low. How do you reconcile this limitation with your proposed dual mechanism?",
+        questionKo: "Berberine과 EGCG가 시험관에서는 DPP-4 억제 효과를 보이지만 인체 경구 생체이용률이 매우 낮습니다. 이 한계를 이중 기전과 어떻게 조화시키십니까?",
+        defenseGuideKo: "전신 생체이용률 한계를 솔직히 인정한 뒤, L-세포와 점막 DPP-4가 장관 내강(intestinal lumen)에 밀집해 있어 국소 작용(local paracrine action)과 미생물 조절로 충분히 유의미한 효과를 낸다고 답변하세요.",
+        sampleAnswerEn: "We fully acknowledge their low systemic bioavailability. However, because enteroendocrine L-cells and mucosal DPP-4 are densely located within the intestinal lumen, Berberine and EGCG exert meaningful local paracrine effects and modulate gut microbiota without requiring high systemic plasma concentrations."
+      },
+      {
+        id: 'qa-2',
+        reviewer: 'Dr. Marcus Vance (심사위원 · 마이크로바이옴)',
+        tag: '개인별 미생물 편차',
+        questionEn: "Given the high inter-individual variability in human gut microbiomes, wouldn't the SCFA-driven GLP-1 response from fermentable fibres be too inconsistent clinically?",
+        questionKo: "사람마다 장내 미생물 구성 편차가 매우 큰데, 발효성 식이섬유 기반 GLP-1 반응의 일관성이 임상적으로 너무 떨어지지 않을까요?",
+        defenseGuideKo: "바로 그 편차를 보완하기 위해 식이섬유 단독이 아닌 '직접 L-세포를 자극하는 유청 펩타이드·글루타민'을 결합한 다중 경로(multi-pathway) 전략을 제안했음을 강조하세요.",
+        sampleAnswerEn: "Microbiome variability is indeed a critical variable. That is precisely why we advocate a multi-pathway combination rather than fibre alone: bioactive peptides and L-glutamine directly trigger L-cell depolarization independently of microbial fermentation, providing a reliable baseline response."
+      },
+      {
+        id: 'qa-3',
+        reviewer: 'Prof. Kenji Takahashi (심사위원 · 임상시험)',
+        tag: '임상 2상 설계 & 타깃군',
+        questionEn: "If you were to design a Phase 2 clinical trial for this formulation, what primary endpoint and patient cohort would you select compared to injectable GLP-1 agonists?",
+        questionKo: "임상 2상을 설계한다면 어떤 1차 평가지표와 환자군을 선택하시겠습니까?",
+        defenseGuideKo: "1차 지표로 식후 활성 GLP-1 AUC와 혈당 변동성을 제시하고, 타깃군으로 전당뇨(prediabetes), 약물 불내성 환자, 또는 주사제 중단 후 유지기(maintenance phase) 코호트를 제안하세요.",
+        sampleAnswerEn: "Our primary endpoints would be postprandial active GLP-1 AUC and glycemic variability. Rather than replacing injectables in severe obesity, the optimal cohorts are individuals with prediabetes, drug-intolerant patients, or those in post-pharmacotherapy weight maintenance."
+      }
+    ];
+
+    // ---------------------------------------------------------------------------
+    // 4. APPLICATION STATE
+    // ---------------------------------------------------------------------------
+    const config = {
+      environmentId: 'academic',
+      customVenue: '국제 바이오 학회',
+      customAudience: '내분비학 전문의 및 연구원',
+      customTone: '권위 있고 객관적인 학술 톤',
+      voiceEngine: 'gemini-tts',
+      voicePersona: 'Charon',
+      targetLang: 'en-GB',
+      mentorLang: 'ko-KR',
+      speed: 1.0,
+      autoSpeakFeedback: true,
+      showInlineCues: true,
+      enableMentorBriefing: true,
+      fontScale: 1.0, // 0.85 ~ 1.35
+    };
+
+    const SPEED_STEPS = [0.85, 1.0, 1.15];
+    let scriptData = JSON.parse(JSON.stringify(FULL_SCRIPT_GLP1));
+    let activeSceneIndex = 0;
+    let activeSegmentIndex = 0;
+    let playbackMode = 'full'; // 'full' | 'shadow'
+    let isPlaying = false;
+    let isPaused = false;
+    let playbackSessionId = 0;
+
+    // Audio Cache & Prefetch
+    const audioCache = new Map();
+    let currentAudioEl = null;
+    let browserVoices = [];
+    let countdownRafId = null;
+
+    // Attached Files State (supports multiple photos, PDFs, Office, HWP, TXT)
+    let attachedFiles = []; // { id, name, typeCategory, icon, mimeType, base64Data?, extractedText?, sizeBytes }
+
+    // Live Mic State
+    let isRecording = false;
+    let activeQaRecordingId = null;
+    let micAudioCtx = null;
+    let micAnalyser = null;
+    let micStream = null;
+    let waveformRafId = null;
+    let speechRecognition = null;
+    let recStartTime = 0;
+    let recTimerInterval = null;
+    let capturedTranscript = '';
+    let interimTranscript = '';
+    let rmsSamples = [];
+    let lastFeedbackText = '';
+
+    // ---------------------------------------------------------------------------
+    // 5. DOM REFERENCES
+    // ---------------------------------------------------------------------------
+    const elEnvSelect = document.getElementById('env-select');
+    const elMetaEnvBadge = document.getElementById('meta-env-badge');
+    const elMetaLangBadge = document.getElementById('meta-lang-badge');
+    const elMetaDurationBadge = document.getElementById('meta-duration-badge');
+    const elScriptTitle = document.getElementById('script-title');
+    const elTeleprompter = document.getElementById('teleprompter-container');
+
+    const btnSampleGlp1 = document.getElementById('btn-sample-glp1');
+    const btnSampleFastInv = document.getElementById('btn-sample-fastinv');
+    const btnToggleInlineCues = document.getElementById('toggle-inline-cues');
+    const btnToggleMentorBriefing = document.getElementById('toggle-mentor-briefing');
+    const btnFontDec = document.getElementById('btn-font-dec');
+    const btnFontInc = document.getElementById('btn-font-inc');
+    const elFontSizeLabel = document.getElementById('font-size-label');
+
+    const elLiveCueBanner = document.getElementById('live-cue-banner');
+    const elLiveCueIcon = document.getElementById('live-cue-icon');
+    const elLiveCueLabel = document.getElementById('live-cue-label');
+    const elLiveCueCountdown = document.getElementById('live-cue-countdown');
+
+    const elDockProgressBar = document.getElementById('dock-progress-bar');
+    const elDockEq = document.getElementById('dock-eq');
+    const elDockProgressText = document.getElementById('dock-progress-text');
+    const btnDockPlay = document.getElementById('btn-dock-play');
+    const elDockPlayIcon = document.getElementById('dock-play-icon');
+    const elDockPlayLabel = document.getElementById('dock-play-label');
+    const btnDockStop = document.getElementById('btn-dock-stop');
+    const btnDockShadow = document.getElementById('btn-dock-shadow');
+    const btnDockMic = document.getElementById('btn-dock-mic');
+    const btnDockSpeed = document.getElementById('btn-dock-speed');
+
+    const modalUpload = document.getElementById('modal-upload');
+    const drawerSettings = document.getElementById('drawer-settings');
+    const drawerMic = document.getElementById('drawer-mic');
+    const drawerQa = document.getElementById('drawer-qa');
+
+    // ---------------------------------------------------------------------------
+    // 6. UTILITIES (TOAST, ESCAPE, TIME FORMAT, CHIME, PCM->WAV, BACKOFF)
+    // ---------------------------------------------------------------------------
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const styles = {
+        info: 'bg-slate-900 text-white border-slate-700',
+        success: 'bg-emerald-700 text-white border-emerald-600',
+        warn: 'bg-amber-600 text-white border-amber-500',
+        error: 'bg-rose-600 text-white border-rose-500',
+      };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-2xl border shadow-xl text-xs font-semibold transition-all duration-300 ${styles[type] || styles.info}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-6px)';
+        setTimeout(() => el.remove(), 300);
+      }, 3600);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function formatMMSS(totalSec) {
+      const s = Math.max(0, Math.round(totalSec));
+      const m = String(Math.floor(s / 60)).padStart(2, '0');
+      const sec = String(s % 60).padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    function getCurrentEnv() {
+      return ENVIRONMENTS[config.environmentId] || ENVIRONMENTS.academic;
+    }
+
+    function estimateScriptDurationSec(data = scriptData) {
+      const env = getCurrentEnv();
+      const targetWpm = (env.wpmMin + env.wpmMax) / 2;
+      let totalWords = 0;
+      let totalPauseSec = 0;
+      (data.scenes || []).forEach(sc => {
+        (sc.segments || []).forEach(seg => {
+          const words = (seg.text || '').trim().split(/\s+/).filter(Boolean).length;
+          totalWords += words;
+          totalPauseSec += (seg.pauseAfterMs || 1200) / 1000;
+        });
+      });
+      return Math.max(15, Math.round((totalWords / targetWpm) * 60 + totalPauseSec));
+    }
+
+    function playChime(kind = 'coach') {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = kind === 'done' ? 'triangle' : 'sine';
+        if (kind === 'shadow') {
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.11);
+        } else if (kind === 'done') {
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.setValueAtTime(880.0, now + 0.12);
+        } else {
+          osc.frequency.setValueAtTime(740, now);
+        }
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.06, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+        osc.start(now);
+        osc.stop(now + 0.36);
+        setTimeout(() => ctx.close().catch(() => {}), 500);
+      } catch (e) {}
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    function pcm16ToWavBlob(pcm16, sampleRate = 24000) {
+      const dataSize = pcm16.length * 2;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+      const wStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+      wStr(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      wStr(8, 'WAVE');
+      wStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      wStr(36, 'data');
+      view.setUint32(40, dataSize, true);
+      let off = 44;
+      for (let i = 0; i < pcm16.length; i++, off += 2) view.setInt16(off, pcm16[i], true);
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    async function fetchWithBackoff(url, options, maxRetries = 3) {
+      let delay = 1000;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const res = await fetch(url, options);
+          if (res.ok) return res;
+          if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2;
+            continue;
+          }
+          return res;
+        } catch (err) {
+          if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2;
+            continue;
+          }
+          throw err;
+        }
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 7. NEURAL VOICE ENGINE (GEMINI TTS + BACKGROUND PREFETCH + BROWSER BACKUP)
+    // ---------------------------------------------------------------------------
+    function loadBrowserVoices() {
+      if ('speechSynthesis' in window) browserVoices = window.speechSynthesis.getVoices();
+    }
+    if ('speechSynthesis' in window) {
+      loadBrowserVoices();
+      window.speechSynthesis.onvoiceschanged = loadBrowserVoices;
+    }
+
+    // Neural voice via server proxy (/api/tts). The API key never reaches the browser.
+    async function synthesizeGeminiTTS(text, langCode, voiceName, isMentor = false) {
+      const env = getCurrentEnv();
+      const langMeta = LANG_META[langCode] || { name: 'British English' };
+      const directive = isMentor
+        ? 'like a warm, concise, authoritative speech coach giving practical guidance'
+        : env.directive;
+
+      const prompt = `Speak naturally and fluidly in ${langMeta.name}, ${directive}. Deliver the complete sentence smoothly with natural human prosody:\n\n${text}`;
+
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, voiceName: voiceName || 'Charon' })
+      });
+      if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.audio) throw new Error('Missing audio payload');
+      const wavBlob = pcm16ToWavBlob(new Int16Array(base64ToArrayBuffer(data.audio)), data.sampleRate || 24000);
+      return URL.createObjectURL(wavBlob);
+    }
+
+    async function getNeuralAudioUrl(text, langCode, isMentor = false, overrideVoice = null) {
+      const voice = overrideVoice || (isMentor ? 'Kore' : config.voicePersona);
+      const key = `${config.environmentId}|${voice}|${langCode}|${isMentor}|${text}`;
+      if (audioCache.has(key)) return audioCache.get(key);
+      const url = await synthesizeGeminiTTS(text, langCode, voice, isMentor);
+      audioCache.set(key, url);
+      const countEl = document.getElementById('settings-cache-count');
+      if (countEl) countEl.textContent = String(audioCache.size);
+      return url;
+    }
+
+    function prefetchSentenceAudio(text, langCode, isMentor = false) {
+      if (config.voiceEngine !== 'gemini-tts' || !text || !text.trim()) return;
+      getNeuralAudioUrl(text, langCode, isMentor).catch(() => {});
+    }
+
+    function playAudioBlobUrl(url, sessionId) {
+      return new Promise((resolve) => {
+        if (sessionId !== playbackSessionId) { resolve(); return; }
+        if (currentAudioEl) { currentAudioEl.pause(); currentAudioEl.src = ''; }
+        const audio = new Audio(url);
+        audio.playbackRate = config.speed || 1.0;
+        currentAudioEl = audio;
+        audio.onended = () => resolve();
+        audio.onerror = () => resolve();
+        audio.play().catch(() => resolve());
+      });
+    }
+
+    function speakBrowserFallback(text, langCode, sessionId) {
+      return new Promise((resolve) => {
+        if (!('speechSynthesis' in window) || sessionId !== playbackSessionId) { resolve(); return; }
+        if (!browserVoices.length) loadBrowserVoices();
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        const prefix = langCode.split('-')[0].toLowerCase();
+        const exact = browserVoices.filter(v => v.lang.toLowerCase() === langCode.toLowerCase());
+        const pool = exact.length ? exact : browserVoices.filter(v => v.lang.toLowerCase().startsWith(prefix));
+        const best = pool.find(v => /Natural|Online|Neural|Google|Premium|Enhanced/i.test(v.name)) || pool[0] || null;
+        if (best) { utter.voice = best; utter.lang = best.lang; }
+        else utter.lang = langCode;
+        utter.rate = config.speed || 1.0;
+        utter.onend = () => resolve();
+        utter.onerror = () => resolve();
+        window.speechSynthesis.speak(utter);
+      });
+    }
+
+    async function speakNatural(text, langCode, sessionId, isMentor = false, overrideVoice = null) {
+      if (sessionId !== playbackSessionId || !text || !text.trim()) return;
+      if (config.voiceEngine === 'browser') {
+        elDockEq.classList.remove('eq-paused');
+        await speakBrowserFallback(text, langCode, sessionId);
+        return;
+      }
+      try {
+        const url = await getNeuralAudioUrl(text, langCode, isMentor, overrideVoice);
+        if (sessionId !== playbackSessionId) return;
+        elDockEq.classList.remove('eq-paused');
+        await playAudioBlobUrl(url, sessionId);
+      } catch (e) {
+        if (sessionId !== playbackSessionId) return;
+        elDockEq.classList.remove('eq-paused');
+        await speakBrowserFallback(text, langCode, sessionId);
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 8. TELEPROMPTER RENDERING (INLINE GESTURES, SLIDE CUES, PHONETICS)
+    // ---------------------------------------------------------------------------
+    function highlightEmphasisWords(text, emphasisWords = []) {
+      let safe = escapeHtml(text);
+      if (!emphasisWords || !emphasisWords.length) return safe;
+      const escaped = [...emphasisWords]
+        .filter(Boolean)
+        .map(w => escapeHtml(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .sort((a, b) => b.length - a.length);
+      if (!escaped.length) return safe;
+      const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+      return safe.replace(re, `<strong class="font-extrabold text-slate-950 bg-amber-100/80 px-1 rounded">$1</strong>`);
+    }
+
+    function updateHeaderMeta() {
+      const env = getCurrentEnv();
+      const lang = LANG_META[scriptData.targetLang || config.targetLang] || { short: config.targetLang };
+      const totalSec = estimateScriptDurationSec(scriptData);
+      const mins = Math.floor(totalSec / 60);
+      const secs = totalSec % 60;
+
+      elEnvSelect.value = config.environmentId;
+      elMetaEnvBadge.textContent = `${env.icon} ${env.name}`;
+      elMetaLangBadge.textContent = lang.short;
+      elMetaDurationBadge.textContent = `${scriptData.scenes.length}개 섹션 · 약 ${mins}분 ${secs}초`;
+      elScriptTitle.textContent = scriptData.title;
+      updateDockProgress();
+    }
+
+    function renderTeleprompter() {
+      elTeleprompter.style.setProperty('--prompter-size', `${(1.2 * config.fontScale).toFixed(2)}rem`);
+      elTeleprompter.classList.toggle('hide-inline-cues', !config.showInlineCues);
+
+      elTeleprompter.innerHTML = scriptData.scenes.map((scene, sIdx) => {
+        const segmentsHtml = (scene.segments || []).map((seg, segIdx) => {
+          const isCurrent = sIdx === activeSceneIndex && segIdx === activeSegmentIndex;
+          const arrowHtml = seg.intonation === 'up'
+            ? `<span class="text-emerald-600 font-extrabold ml-1" title="억양 올림">↗</span>`
+            : `<span class="text-indigo-600 font-extrabold ml-1" title="신뢰감 있게 낮춤">↘</span>`;
+          const pauseSec = ((seg.pauseAfterMs || 1200) / 1000).toFixed(1);
+
+          const gesturePill = seg.gestureCue
+            ? `<span class="cue-gesture">🖐️ ${escapeHtml(seg.gestureCue)}</span>`
+            : '';
+          const slidePill = seg.slideCue
+            ? `<span class="cue-slide">📊 ${escapeHtml(seg.slideCue)}</span>`
+            : '';
+          const pausePill = `<span class="cue-pause">⏸ ${pauseSec}초 멈춤</span>`;
+
+          const phoneticsHtml = (seg.phonetics && seg.phonetics.length)
+            ? `<div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+                ${seg.phonetics.map(p => `
+                  <button type="button" data-phonetic="${escapeHtml(p.term)}" class="phonetic-btn px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200/90 text-[11px] font-bold text-amber-800 transition flex items-center gap-1">
+                    <span>🔊</span>
+                    <span>${escapeHtml(p.term)}</span>
+                    <span class="font-mono font-normal text-amber-700/80">[${escapeHtml(p.phonetic)}]</span>
+                  </button>
+                `).join('')}
+              </div>`
+            : '';
+
+          return `
+            <div id="seg-${sIdx}-${segIdx}" data-s="${sIdx}" data-seg="${segIdx}" class="prompter-seg cursor-pointer p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${
+              isCurrent ? 'segment-active' : 'bg-white/75 border-slate-200/80 hover:border-indigo-300 hover:bg-white'
+            }">
+              <p class="prompter-text font-en text-slate-800">
+                ${gesturePill}${slidePill}
+                ${highlightEmphasisWords(seg.text, seg.emphasisWords)}${arrowHtml}
+                ${pausePill}
+              </p>
+              ${phoneticsHtml}
+            </div>
+          `;
+        }).join('');
+
+        const briefingHtml = (config.enableMentorBriefing && scene.mentorBriefing)
+          ? `<div class="mb-3 px-4 py-3 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-start gap-2.5">
+              <button type="button" data-briefing-s="${sIdx}" class="btn-play-briefing w-7 h-7 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shrink-0 text-xs transition" title="이 섹션 멘토 브리핑 듣기">
+                🔊
+              </button>
+              <p class="text-xs sm:text-[13px] text-indigo-950/90 leading-relaxed">
+                <strong class="text-indigo-700 mr-1">멘토 코칭:</strong>${escapeHtml(scene.mentorBriefing)}
+              </p>
+            </div>`
+          : '';
+
+        return `
+          <section class="flex flex-col gap-3">
+            <div class="flex items-center justify-between gap-2 px-1">
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-900 text-white">${escapeHtml(scene.badge || `Section ${sIdx + 1}`)}</span>
+                <h2 class="text-sm sm:text-base font-extrabold text-slate-800">${escapeHtml(scene.title)}</h2>
+              </div>
+              <button type="button" data-play-section="${sIdx}" class="btn-play-section text-xs font-bold text-indigo-600 hover:text-indigo-800 px-2.5 py-1 rounded-lg hover:bg-indigo-50 transition">
+                ▶ 여기서부터 듣기
+              </button>
+            </div>
+            ${briefingHtml}
+            <div class="flex flex-col gap-3">
+              ${segmentsHtml}
+            </div>
+          </section>
+        `;
+      }).join('');
+
+      // Bind click-to-play on sentences
+      elTeleprompter.querySelectorAll('.prompter-seg').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.phonetic-btn')) return;
+          const sIdx = parseInt(el.dataset.s, 10);
+          const segIdx = parseInt(el.dataset.seg, 10);
+          playFromPosition(sIdx, segIdx, true);
+        });
+      });
+
+      // Bind pronunciation chips
+      elTeleprompter.querySelectorAll('.phonetic-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          stopPlayback();
+          const term = btn.dataset.phonetic;
+          const sid = ++playbackSessionId;
+          showToast(`🗣️ "${term}" 원어민 발음 재생 중...`, 'info');
+          await speakNatural(term, scriptData.targetLang || config.targetLang, sid, false);
+          elDockEq.classList.add('eq-paused');
+        });
+      });
+
+      // Bind section play & briefing buttons
+      elTeleprompter.querySelectorAll('.btn-play-section').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sIdx = parseInt(btn.dataset.playSection, 10);
+          playFromPosition(sIdx, 0, true);
+        });
+      });
+      elTeleprompter.querySelectorAll('.btn-play-briefing').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          stopPlayback();
+          const sIdx = parseInt(btn.dataset.briefingS, 10);
+          const text = scriptData.scenes[sIdx]?.mentorBriefing;
+          if (!text) return;
+          const sid = ++playbackSessionId;
+          isPlaying = true;
+          updateDockButtons();
+          await speakNatural(text, scriptData.mentorLang || config.mentorLang, sid, true);
+          if (sid === playbackSessionId) { isPlaying = false; elDockEq.classList.add('eq-paused'); updateDockButtons(); }
+        });
+      });
+    }
+
+    function highlightAndScrollActive(sIdx, segIdx) {
+      activeSceneIndex = sIdx;
+      activeSegmentIndex = segIdx;
+      elTeleprompter.querySelectorAll('.prompter-seg').forEach(el => {
+        const match = parseInt(el.dataset.s, 10) === sIdx && parseInt(el.dataset.seg, 10) === segIdx;
+        el.classList.toggle('segment-active', match);
+        if (!match) {
+          el.classList.add('bg-white/75', 'border-slate-200/80');
+        } else {
+          el.classList.remove('bg-white/75', 'border-slate-200/80');
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+      updateDockProgress();
+    }
+
+    function updateDockProgress() {
+      let totalSegs = 0;
+      let currentFlatIdx = 0;
+      scriptData.scenes.forEach((sc, si) => {
+        (sc.segments || []).forEach((_, segi) => {
+          if (si < activeSceneIndex || (si === activeSceneIndex && segi < activeSegmentIndex)) {
+            currentFlatIdx++;
+          }
+          totalSegs++;
+        });
+      });
+      const pct = totalSegs > 0 ? Math.min(100, Math.round(((currentFlatIdx + (isPlaying ? 1 : 0)) / totalSegs) * 100)) : 0;
+      const totalSec = estimateScriptDurationSec(scriptData);
+      const elapsedSec = Math.round((pct / 100) * totalSec);
+
+      elDockProgressBar.style.width = `${pct}%`;
+      elDockProgressText.textContent = `섹션 ${activeSceneIndex + 1}/${scriptData.scenes.length} · ${formatMMSS(elapsedSec)} / ${formatMMSS(totalSec)}`;
+    }
+
+    function updateDockButtons() {
+      if (isPlaying && !isPaused) {
+        elDockPlayIcon.textContent = '⏸';
+        elDockPlayLabel.textContent = playbackMode === 'shadow' ? '쉐도잉 일시정지' : '일시정지';
+        btnDockStop.classList.remove('hidden');
+      } else if (isPlaying && isPaused) {
+        elDockPlayIcon.textContent = '▶';
+        elDockPlayLabel.textContent = '계속 재생';
+        btnDockStop.classList.remove('hidden');
+        elDockEq.classList.add('eq-paused');
+      } else {
+        elDockPlayIcon.textContent = '▶';
+        elDockPlayLabel.textContent = '전체 음성 멘토링';
+        btnDockStop.classList.add('hidden');
+        elDockEq.classList.add('eq-paused');
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 9. CONTINUOUS FULL-LENGTH PLAYBACK ENGINE (NEVER STOPS AFTER SECTION 1)
+    // ---------------------------------------------------------------------------
+    function hideLiveBanner() {
+      if (countdownRafId) cancelAnimationFrame(countdownRafId);
+      countdownRafId = null;
+      elLiveCueBanner.classList.add('hidden');
+    }
+
+    function waitWithBanner(ms, icon, label, sessionId) {
+      return new Promise((resolve) => {
+        if (sessionId !== playbackSessionId || ms <= 0) { resolve(); return; }
+        elLiveCueBanner.classList.remove('hidden');
+        elLiveCueIcon.textContent = icon;
+        elLiveCueLabel.textContent = label;
+        const start = performance.now();
+        let pausedTotal = 0;
+        let pauseStart = null;
+
+        function tick(now) {
+          if (sessionId !== playbackSessionId) { hideLiveBanner(); resolve(); return; }
+          if (isPaused) {
+            if (!pauseStart) pauseStart = now;
+            countdownRafId = requestAnimationFrame(tick);
+            return;
+          } else if (pauseStart) {
+            pausedTotal += (now - pauseStart);
+            pauseStart = null;
+          }
+          const rem = Math.max(0, ms - (now - start - pausedTotal));
+          elLiveCueCountdown.textContent = `${(rem / 1000).toFixed(1)}s`;
+          if (rem <= 0) { hideLiveBanner(); resolve(); }
+          else countdownRafId = requestAnimationFrame(tick);
+        }
+        countdownRafId = requestAnimationFrame(tick);
+      });
+    }
+
+    function stopPlayback() {
+      playbackSessionId++;
+      isPlaying = false;
+      isPaused = false;
+      if (currentAudioEl) { currentAudioEl.pause(); currentAudioEl.currentTime = 0; currentAudioEl = null; }
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      hideLiveBanner();
+      updateDockButtons();
+    }
+
+    async function playFromPosition(startSceneIdx = 0, startSegIdx = 0, continuousToEnd = true) {
+      if (isRecording) stopRecording();
+      stopPlayback();
+
+      const sessionId = ++playbackSessionId;
+      isPlaying = true;
+      isPaused = false;
+      updateDockButtons();
+
+      const targetLang = scriptData.targetLang || config.targetLang || 'en-GB';
+      const mentorLang = scriptData.mentorLang || config.mentorLang || 'ko-KR';
+      const lastScene = continuousToEnd ? scriptData.scenes.length - 1 : startSceneIdx;
+
+      for (let sIdx = startSceneIdx; sIdx <= lastScene; sIdx++) {
+        if (sessionId !== playbackSessionId) break;
+        const scene = scriptData.scenes[sIdx];
+        if (!scene || !scene.segments || !scene.segments.length) continue;
+
+        // Play Mentor Briefing if enabled and starting at segment 0 of this section
+        const beginSeg = (sIdx === startSceneIdx) ? startSegIdx : 0;
+        if (config.enableMentorBriefing && beginSeg === 0 && scene.mentorBriefing) {
+          highlightAndScrollActive(sIdx, 0);
+          // Background pre-fetch first sentence while mentor talks
+          prefetchSentenceAudio(scene.segments[0].text, targetLang, false);
+          await speakNatural(scene.mentorBriefing, mentorLang, sessionId, true);
+          if (sessionId !== playbackSessionId) break;
+          playChime('coach');
+          await waitWithBanner(600, '🎙️', `${scene.badge} 모범 음성 시연 준비`, sessionId);
+        }
+
+        for (let segIdx = beginSeg; segIdx < scene.segments.length; segIdx++) {
+          if (sessionId !== playbackSessionId) break;
+          highlightAndScrollActive(sIdx, segIdx);
+
+          const seg = scene.segments[segIdx];
+
+          // Pre-fetch the NEXT sentence in background for gapless continuous playback
+          const nextSeg = scene.segments[segIdx + 1] || scriptData.scenes[sIdx + 1]?.segments?.[0];
+          if (nextSeg) prefetchSentenceAudio(nextSeg.text, targetLang, false);
+
+          await speakNatural(seg.text, targetLang, sessionId, false);
+          if (sessionId !== playbackSessionId) break;
+          elDockEq.classList.add('eq-paused');
+
+          if (playbackMode === 'shadow') {
+            playChime('shadow');
+            const words = (seg.text || '').trim().split(/\s+/).length;
+            const repeatMs = Math.max(3000, Math.min(11000, words * 450));
+            await waitWithBanner(repeatMs, '🎤', '지금 따라 말해보세요 (쉐도잉)', sessionId);
+          } else {
+            const pauseMs = seg.pauseAfterMs || 1200;
+            if (pauseMs >= 500) {
+              await waitWithBanner(pauseMs, '⏸', seg.gestureCue ? `휴지 · ${seg.gestureCue}` : '청중과 시선 맞추기 (휴지)', sessionId);
+            }
+          }
+        }
+      }
+
+      if (sessionId === playbackSessionId) {
+        playChime('done');
+        isPlaying = false;
+        isPaused = false;
+        updateDockButtons();
+        elDockProgressBar.style.width = '100%';
+        showToast('✨ 전체 원고 음성 멘토링을 완료했습니다!', 'success');
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 10. DIVERSE FILE ATTACHMENT PARSER (사진, PDF, PPT, Word, HWP, TXT)
+    // ---------------------------------------------------------------------------
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || '');
+          resolve(result.includes(',') ? result.split(',')[1] : result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function extractXmlText(xmlStr) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlStr, 'application/xml');
+      const textContent = doc.documentElement ? doc.documentElement.textContent : '';
+      return textContent.replace(/\s+/g, ' ').trim();
+    }
+
+    async function parsePptx(arrayBuffer) {
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const slideFiles = Object.keys(zip.files)
+        .filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+        .sort((a, b) => {
+          const numA = parseInt(a.match(/slide(\d+)\.xml/i)[1], 10);
+          const numB = parseInt(b.match(/slide(\d+)\.xml/i)[1], 10);
+          return numA - numB;
+        });
+
+      const slides = [];
+      for (let i = 0; i < slideFiles.length; i++) {
+        const xml = await zip.files[slideFiles[i]].async('string');
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xml, 'application/xml');
+        const nodes = doc.getElementsByTagName('a:t');
+        const lines = [];
+        for (let n = 0; n < nodes.length; n++) {
+          const t = nodes[n].textContent.trim();
+          if (t) lines.push(t);
+        }
+        if (lines.length) slides.push(`[Slide ${i + 1}]\n${lines.join(' ')}`);
+      }
+      return slides.join('\n\n');
+    }
+
+    async function parseDocx(arrayBuffer) {
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const docFile = zip.files['word/document.xml'];
+      if (!docFile) return '';
+      const xml = await docFile.async('string');
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xml, 'application/xml');
+      const paras = doc.getElementsByTagName('w:p');
+      const out = [];
+      for (let i = 0; i < paras.length; i++) {
+        const tNodes = paras[i].getElementsByTagName('w:t');
+        let line = '';
+        for (let j = 0; j < tNodes.length; j++) line += tNodes[j].textContent;
+        if (line.trim()) out.push(line.trim());
+      }
+      return out.join('\n\n');
+    }
+
+    async function parseHwpx(arrayBuffer) {
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const sectionFiles = Object.keys(zip.files)
+        .filter(name => /^Contents\/section\d+\.xml$/i.test(name))
+        .sort((a, b) => {
+          const numA = parseInt(a.match(/section(\d+)\.xml/i)[1], 10);
+          const numB = parseInt(b.match(/section(\d+)\.xml/i)[1], 10);
+          return numA - numB;
+        });
+
+      const sections = [];
+      for (const sf of sectionFiles) {
+        const xml = await zip.files[sf].async('string');
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xml, 'application/xml');
+        const tNodes = doc.getElementsByTagName('hp:t');
+        const parts = [];
+        for (let i = 0; i < tNodes.length; i++) {
+          const t = tNodes[i].textContent.trim();
+          if (t) parts.push(t);
+        }
+        if (parts.length) sections.push(parts.join(' '));
+        else {
+          const fallback = extractXmlText(xml);
+          if (fallback) sections.push(fallback);
+        }
+      }
+      return sections.join('\n\n');
+    }
+
+    function extractLegacyBinaryText(arrayBuffer) {
+      // Best-effort UTF-16LE scan for Korean/English readable sequences in legacy .hwp/.doc/.ppt
+      const bytes = new Uint8Array(arrayBuffer);
+      const view = new DataView(arrayBuffer);
+      let current = '';
+      const chunks = [];
+      for (let i = 0; i + 1 < bytes.length; i += 2) {
+        const code = view.getUint16(i, true);
+        const isReadable =
+          (code >= 0xAC00 && code <= 0xD7A3) || // Hangul syllables
+          (code >= 0x0020 && code <= 0x007E) || // Basic ASCII
+          code === 0x000A || code === 0x000D;
+        if (isReadable) {
+          current += String.fromCharCode(code);
+        } else {
+          if (current.trim().length >= 8) chunks.push(current.trim());
+          current = '';
+        }
+      }
+      if (current.trim().length >= 8) chunks.push(current.trim());
+      return chunks.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    async function handleFilesSelected(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+
+      const textArea = document.getElementById('input-raw-text');
+
+      for (const file of files) {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        const id = `f-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+        try {
+          if (['jpg', 'jpeg', 'png', 'webp', 'heic'].includes(ext) || file.type.startsWith('image/')) {
+            const base64 = await fileToBase64(file);
+            attachedFiles.push({
+              id, name: file.name, typeCategory: '이미지 OCR', icon: '🖼️',
+              mimeType: file.type || 'image/jpeg', base64Data: base64, sizeBytes: file.size
+            });
+            showToast(`🖼️ "${file.name}" 첨부 완료 (AI가 이미지 텍스트를 100% OCR 합니다)`, 'success');
+          } else if (ext === 'pdf' || file.type === 'application/pdf') {
+            const base64 = await fileToBase64(file);
+            attachedFiles.push({
+              id, name: file.name, typeCategory: 'PDF 문서', icon: '📕',
+              mimeType: 'application/pdf', base64Data: base64, sizeBytes: file.size
+            });
+            showToast(`📕 "${file.name}" 첨부 완료 (PDF 전체 페이지를 멀티모달로 분석합니다)`, 'success');
+          } else if (ext === 'pptx') {
+            const text = await parsePptx(await file.arrayBuffer());
+            attachedFiles.push({
+              id, name: file.name, typeCategory: 'PowerPoint', icon: '📊',
+              extractedText: text, sizeBytes: file.size
+            });
+            appendExtractedText(textArea, text);
+            showToast(`📊 "${file.name}" 슬라이드 텍스트 추출 완료 (${text.length.toLocaleString()}자)`, 'success');
+          } else if (ext === 'docx') {
+            const text = await parseDocx(await file.arrayBuffer());
+            attachedFiles.push({
+              id, name: file.name, typeCategory: 'Word 문서', icon: '📘',
+              extractedText: text, sizeBytes: file.size
+            });
+            appendExtractedText(textArea, text);
+            showToast(`📘 "${file.name}" 본문 추출 완료 (${text.length.toLocaleString()}자)`, 'success');
+          } else if (ext === 'hwpx') {
+            const text = await parseHwpx(await file.arrayBuffer());
+            attachedFiles.push({
+              id, name: file.name, typeCategory: '한글(HWPX)', icon: '📄',
+              extractedText: text, sizeBytes: file.size
+            });
+            appendExtractedText(textArea, text);
+            showToast(`📄 "${file.name}" 한글 본문 추출 완료 (${text.length.toLocaleString()}자)`, 'success');
+          } else if (['hwp', 'doc', 'ppt'].includes(ext)) {
+            const extracted = extractLegacyBinaryText(await file.arrayBuffer());
+            attachedFiles.push({
+              id, name: file.name, typeCategory: `구버전 ${ext.toUpperCase()}`, icon: '📄',
+              extractedText: extracted, sizeBytes: file.size
+            });
+            if (extracted.length > 30) {
+              appendExtractedText(textArea, extracted);
+              showToast(`📄 "${file.name}" 텍스트 스캔 완료 (${extracted.length.toLocaleString()}자). 압축/암호화 구간이 있다면 PDF나 ${ext}x로 저장해 올려주세요.`, 'info');
+            } else {
+              showToast(`⚠️ "${file.name}"은 압축/암호화된 구버전 바이너리 형식입니다. PDF 또는 .${ext}x로 저장하여 첨부해 주세요.`, 'warn');
+            }
+          } else {
+            const text = await file.text();
+            attachedFiles.push({
+              id, name: file.name, typeCategory: '텍스트', icon: '📝',
+              extractedText: text, sizeBytes: file.size
+            });
+            appendExtractedText(textArea, text);
+            showToast(`📝 "${file.name}" 불러오기 완료 (${text.length.toLocaleString()}자)`, 'success');
+          }
+        } catch (err) {
+          showToast(`"${file.name}" 파일 처리 중 오류가 발생했습니다.`, 'error');
+        }
+      }
+
+      renderAttachedFiles();
+      updateRawTextStats();
+    }
+
+    function appendExtractedText(textarea, newText) {
+      if (!newText || !newText.trim()) return;
+      textarea.value = textarea.value.trim()
+        ? `${textarea.value.trim()}\n\n${newText.trim()}`
+        : newText.trim();
+    }
+
+    function renderAttachedFiles() {
+      const area = document.getElementById('attached-files-area');
+      const list = document.getElementById('attached-files-list');
+      const count = document.getElementById('attached-count');
+      count.textContent = String(attachedFiles.length);
+
+      if (!attachedFiles.length) {
+        area.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+      }
+
+      area.classList.remove('hidden');
+      list.innerHTML = attachedFiles.map(f => {
+        const detail = f.base64Data
+          ? `${(f.sizeBytes / 1024).toFixed(0)} KB · AI 멀티모달 직접 인식`
+          : `${(f.extractedText || '').length.toLocaleString()}자 추출됨`;
+        return `
+          <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="text-lg shrink-0">${f.icon}</span>
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-slate-800 truncate">${escapeHtml(f.name)}</div>
+                <div class="text-[11px] text-slate-500">${escapeHtml(f.typeCategory)} · ${detail}</div>
+              </div>
+            </div>
+            <button type="button" data-rm-file="${f.id}" class="btn-rm-file p-1 text-slate-400 hover:text-rose-600 text-xs font-bold">✕</button>
+          </div>
+        `;
+      }).join('');
+
+      list.querySelectorAll('.btn-rm-file').forEach(btn => {
+        btn.addEventListener('click', () => {
+          attachedFiles = attachedFiles.filter(f => f.id !== btn.dataset.rmFile);
+          renderAttachedFiles();
+        });
+      });
+    }
+
+    function updateRawTextStats() {
+      const text = document.getElementById('input-raw-text').value.trim();
+      const chars = text.length;
+      const words = text ? text.split(/\s+/).length : 0;
+      const estSec = Math.round((Math.max(words, chars / 4) / 125) * 60);
+      document.getElementById('text-stats-label').textContent =
+        `${chars.toLocaleString()}자 · 예상 ${Math.floor(estSec / 60)}분 ${estSec % 60}초`;
+    }
+
+    // ---------------------------------------------------------------------------
+    // 11. FULL-LENGTH MULTI-CHUNK SCRIPT GENERATOR (NEVER TRUNCATES AT 30 SECONDS)
+    // ---------------------------------------------------------------------------
+    function splitTextIntoLogicalChunks(text, maxChars = 3500) {
+      if (text.length <= maxChars) return [text];
+      const paragraphs = text.split(/\n{2,}/);
+      const chunks = [];
+      let current = '';
+      for (const p of paragraphs) {
+        if ((current.length + p.length + 2) > maxChars && current.trim()) {
+          chunks.push(current.trim());
+          current = p;
+        } else {
+          current += (current ? '\n\n' : '') + p;
+        }
+      }
+      if (current.trim()) chunks.push(current.trim());
+      return chunks;
+    }
+
+    // -------------------------------------------------------------------------
+    // 11B. AI AGENT PIPELINE: Writer (reads attachments) -> Director (builds scenes), via /api/script
+    // -------------------------------------------------------------------------
+    async function callScriptChunk({ textChunk, mediaFiles, chunkIdx, totalChunks }) {
+      const env = getCurrentEnv();
+      const targetLang = document.getElementById('upload-target-lang').value || config.targetLang;
+      const mentorLang = document.getElementById('upload-mentor-lang').value || config.mentorLang;
+      const res = await fetch('/api/script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          textChunk,
+          mediaFiles: mediaFiles.map(f => ({ mimeType: f.mimeType, base64Data: f.base64Data })),
+          chunkIdx,
+          totalChunks,
+          targetLang,
+          mentorLang,
+          environment: { name: env.name, wpmMin: env.wpmMin, wpmMax: env.wpmMax, directive: env.directive }
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
+    }
+
+    async function handleGenerateFullScript() {
+      const rawText = document.getElementById('input-raw-text').value.trim();
+      const heicFiles = attachedFiles.filter(f => f.mimeType === 'image/heic');
+      const mediaFiles = attachedFiles.filter(f => f.base64Data && f.mimeType !== 'image/heic');
+
+      if (heicFiles.length) showToast('HEIC 사진은 AI가 읽을 수 없습니다. JPG로 변환해 첨부해 주세요.', 'warn');
+      if (!rawText && !mediaFiles.length) {
+        showToast('원고를 입력하거나 사진·PDF·PPT·Word·HWP 파일을 첨부해 주세요.', 'warn');
+        return;
+      }
+      const payloadChars = mediaFiles.reduce((n, f) => n + f.base64Data.length, 0);
+      if (payloadChars > 3.6 * 1024 * 1024) {
+        showToast('첨부 파일 합계가 너무 큽니다. 약 2.7MB 이하로 줄여 주세요.', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btn-generate-full-script');
+      const spinner = document.getElementById('gen-spinner');
+      const btnLabel = document.getElementById('gen-btn-label');
+      const progBox = document.getElementById('gen-progress-box');
+      const progText = document.getElementById('gen-progress-text');
+      const progPct = document.getElementById('gen-progress-pct');
+      const progBar = document.getElementById('gen-progress-bar');
+
+      btn.disabled = true;
+      spinner.classList.remove('hidden');
+      btnLabel.textContent = '100% 전체 원고 생성 중...';
+      progBox.classList.remove('hidden');
+
+      try {
+        const textChunks = rawText ? splitTextIntoLogicalChunks(rawText, 1800) : [''];
+        const totalChunks = textChunks.length;
+        const mergedScenes = [];
+        let finalTitle = '';
+        let usedAI = false;
+
+        for (let i = 0; i < totalChunks; i++) {
+          const pct = Math.round(((i + 0.25) / totalChunks) * 100);
+          progText.textContent = totalChunks > 1
+            ? `파트 ${i + 1}/${totalChunks} 전체 변환 중 (누락 없이 100% 처리)...`
+            : (mediaFiles.length ? '첨부 파일 분석 및 전체 원고 생성 중...' : '100% 전체 원고 스피치 악보 생성 중...');
+          progPct.textContent = `${pct}%`;
+          progBar.style.width = `${pct}%`;
+
+          const result = await callScriptChunk({
+            textChunk: textChunks[i],
+            mediaFiles: i === 0 ? mediaFiles : [],
+            chunkIdx: i,
+            totalChunks
+          });
+          usedAI = usedAI || result.source === 'claude';
+          if (!finalTitle && result.title) finalTitle = result.title;
+          (result.scenes || []).forEach(sc => mergedScenes.push(sc));
+
+          const donePct = Math.round(((i + 1) / totalChunks) * 100);
+          progPct.textContent = `${donePct}%`;
+          progBar.style.width = `${donePct}%`;
+        }
+
+        if (!mergedScenes.length) throw new Error('생성된 섹션이 없습니다.');
+        mergedScenes.forEach((sc, idx) => { sc.badge = `Section ${idx + 1}`; });
+
+        config.targetLang = document.getElementById('upload-target-lang').value || config.targetLang;
+        config.mentorLang = document.getElementById('upload-mentor-lang').value || config.mentorLang;
+
+        stopPlayback();
+        scriptData = {
+          title: finalTitle || '맞춤 스피치 전체 원고',
+          environmentId: config.environmentId,
+          targetLang: config.targetLang,
+          mentorLang: config.mentorLang,
+          scenes: mergedScenes,
+          qa: null
+        };
+        activeSceneIndex = 0;
+        activeSegmentIndex = 0;
+
+        updateHeaderMeta();
+        renderTeleprompter();
+        modalUpload.classList.add('hidden');
+        showToast(
+          usedAI
+            ? `✨ AI 에이전트가 ${mergedScenes.length}개 섹션 악보를 만들었습니다. 바로 재생합니다.`
+            : `데모 모드: 규칙 기반으로 ${mergedScenes.length}개 섹션을 만들었습니다. AI 키를 설정하면 전체 에이전트가 켜집니다.`,
+          usedAI ? 'success' : 'info'
+        );
+        playFromPosition(0, 0, true);
+      } catch (err) {
+        showToast(`원고 변환 실패: ${err.message || '다시 시도해 주세요.'}`, 'error');
+      } finally {
+        btn.disabled = false;
+        spinner.classList.add('hidden');
+        btnLabel.textContent = '✨ 100% 전체 원고로 스피치 악보 · 제스처 · 음성 가이드 생성';
+        setTimeout(() => progBox.classList.add('hidden'), 1200);
+      }
+    }
+
+    // Reviewer agent: Q&A list for the current script (falls back to the built-in examples)
+    function currentQaList() {
+      return (scriptData.qa && scriptData.qa.length) ? scriptData.qa : REVIEWER_QA_LIST;
+    }
+
+    function genQaBarHtml() {
+      const label = scriptData.qa && scriptData.qa.length ? 'AI 생성 질문' : '기본 예시 질문';
+      return `<div class="flex items-center justify-between gap-2 p-3 rounded-2xl bg-rose-50 border border-rose-200">
+        <span class="text-xs font-bold text-rose-800">현재 원고 기준 · ${label}</span>
+        <button type="button" id="btn-gen-qa" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition">✨ AI 질문 생성</button>
+      </div>`;
+    }
+
+    async function generateQa() {
+      const btn = document.getElementById('btn-gen-qa');
+      if (btn) { btn.disabled = true; btn.textContent = '생성 중...'; }
+      try {
+        const text = scriptData.scenes.map(sc => sc.segments.map(s => s.text).join(' ')).join('\n\n');
+        const res = await fetch('/api/qa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: scriptData.title, text, mentorLang: scriptData.mentorLang || config.mentorLang })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        scriptData.qa = data.qa && data.qa.length ? data.qa : null;
+        renderQaDrawer();
+        showToast(
+          scriptData.qa ? '✨ 원고 기준 예상 질문 3개를 생성했습니다.' : '데모 모드: 기본 예시 질문을 표시합니다. AI 키를 설정하면 원고별 질문을 만듭니다.',
+          scriptData.qa ? 'success' : 'info'
+        );
+      } catch (err) {
+        showToast(`질문 생성 실패: ${err.message || '다시 시도해 주세요.'}`, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '✨ AI 질문 생성'; }
+      }
+    }
+
+    function resizeWaveform() {
+      const wrap = document.getElementById('waveform-wrapper');
+      const canvas = document.getElementById('waveform-canvas');
+      if (!wrap || !canvas) return;
+      const rect = wrap.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(100, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(40, Math.floor(rect.height * dpr));
+    }
+    window.addEventListener('resize', resizeWaveform);
+
+    async function startRecording(qaId = null) {
+      stopPlayback();
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('이 브라우저에서는 마이크 녹음을 지원하지 않습니다.', 'error');
+        return;
+      }
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        showToast('마이크 권한을 허용해 주세요.', 'error');
+        return;
+      }
+
+      isRecording = true;
+      activeQaRecordingId = qaId;
+      capturedTranscript = '';
+      interimTranscript = '';
+      rmsSamples = [];
+      recStartTime = Date.now();
+
+      if (qaId) {
+        const qaBtn = document.getElementById(`qa-rec-btn-${qaId}`);
+        if (qaBtn) qaBtn.textContent = '⏹ 답변 완료 · 코칭 듣기';
+      }
+
+      const btnRec = document.getElementById('btn-toggle-record');
+      btnRec.classList.add('rec-pulse', 'bg-slate-900', 'hover:bg-slate-800');
+      btnRec.classList.remove('bg-rose-600', 'hover:bg-rose-700');
+      document.getElementById('rec-dot').classList.add('bg-rose-500');
+      document.getElementById('rec-btn-label').textContent = '⏹ 녹음 완료 & AI 음성 코칭 듣기';
+      document.getElementById('waveform-placeholder').classList.add('hidden');
+      document.getElementById('mic-wpm-badge').classList.remove('hidden');
+      document.getElementById('mic-result-box').classList.add('hidden');
+      const trBox = document.getElementById('mic-transcript-box');
+      trBox.classList.remove('hidden');
+      trBox.textContent = '🎙️ 말씀하세요... 실시간 분석 중';
+
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      micAudioCtx = new Ctx();
+      const src = micAudioCtx.createMediaStreamSource(micStream);
+      micAnalyser = micAudioCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      src.connect(micAnalyser);
+
+      resizeWaveform();
+      drawWaveform();
+
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRec) {
+        speechRecognition = new SpeechRec();
+        speechRecognition.continuous = true;
+        speechRecognition.interimResults = true;
+        speechRecognition.lang = qaId ? 'en-GB' : (scriptData.targetLang || config.targetLang);
+        speechRecognition.onresult = (ev) => {
+          let fin = '', inter = '';
+          for (let i = 0; i < ev.results.length; i++) {
+            if (ev.results[i].isFinal) fin += ev.results[i][0].transcript + ' ';
+            else inter += ev.results[i][0].transcript;
+          }
+          capturedTranscript = fin.trim();
+          interimTranscript = inter.trim();
+          const all = (capturedTranscript + ' ' + interimTranscript).trim();
+          if (all) { trBox.textContent = all; trBox.scrollTop = trBox.scrollHeight; }
+        };
+        speechRecognition.onerror = () => {};
+        try { speechRecognition.start(); } catch (e) {}
+      }
+
+      recTimerInterval = setInterval(() => {
+        const sec = Math.max(1, (Date.now() - recStartTime) / 1000);
+        document.getElementById('mic-timer').textContent = formatMMSS(sec);
+        const all = (capturedTranscript + ' ' + interimTranscript).trim();
+        const w = all ? all.split(/\s+/).length : 0;
+        const wpm = w > 2 ? Math.round((w / sec) * 60) : 0;
+        document.getElementById('mic-wpm-badge').textContent = wpm > 0 ? `${wpm} WPM` : '분석 중';
+      }, 300);
+    }
+
+    function drawWaveform() {
+      if (!isRecording || !micAnalyser) return;
+      const canvas = document.getElementById('waveform-canvas');
+      const ctx = canvas.getContext('2d');
+      const len = micAnalyser.frequencyBinCount;
+      const data = new Uint8Array(len);
+      micAnalyser.getByteTimeDomainData(data);
+
+      let sum = 0;
+      for (let i = 0; i < len; i++) { const n = (data[i] - 128) / 128; sum += n * n; }
+      const rms = Math.sqrt(sum / len);
+      rmsSamples.push(rms);
+      document.getElementById('mic-energy-bar').style.width = `${Math.min(100, Math.round(rms * 360))}%`;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#818cf8';
+      ctx.beginPath();
+      const slice = canvas.width / len;
+      let x = 0;
+      for (let i = 0; i < len; i++) {
+        const y = ((data[i] / 128.0) * canvas.height) / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += slice;
+      }
+      ctx.lineTo(canvas.width, canvas.height / 2);
+      ctx.stroke();
+      waveformRafId = requestAnimationFrame(drawWaveform);
+    }
+
+    function stopRecording() {
+      if (!isRecording) return;
+      const qaId = activeQaRecordingId;
+      isRecording = false;
+      activeQaRecordingId = null;
+
+      if (recTimerInterval) clearInterval(recTimerInterval);
+      if (waveformRafId) cancelAnimationFrame(waveformRafId);
+      if (speechRecognition) { try { speechRecognition.stop(); } catch (e) {} speechRecognition = null; }
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+      if (micAudioCtx) { micAudioCtx.close().catch(() => {}); micAudioCtx = null; }
+
+      if (qaId) {
+        const qaBtn = document.getElementById(`qa-rec-btn-${qaId}`);
+        if (qaBtn) qaBtn.textContent = '🎤 내 답변 녹음 & 코칭';
+      }
+
+      const btnRec = document.getElementById('btn-toggle-record');
+      btnRec.classList.remove('rec-pulse', 'bg-slate-900', 'hover:bg-slate-800');
+      btnRec.classList.add('bg-rose-600', 'hover:bg-rose-700');
+      document.getElementById('rec-dot').classList.remove('bg-rose-500');
+      document.getElementById('rec-btn-label').textContent = '다시 녹음하기';
+      document.getElementById('mic-energy-bar').style.width = '0%';
+      document.getElementById('waveform-placeholder').classList.remove('hidden');
+
+      const elapsedSec = Math.max(1.5, (Date.now() - recStartTime) / 1000);
+      evaluateRecordingAndSpeak(elapsedSec, qaId);
+    }
+
+    async function evaluateRecordingAndSpeak(elapsedSec, qaId = null) {
+      const env = getCurrentEnv();
+      const spoken = (capturedTranscript + ' ' + interimTranscript).trim();
+      const words = spoken ? spoken.split(/\s+/) : [];
+      const scene = scriptData.scenes[activeSceneIndex] || scriptData.scenes[0];
+      const expectedWords = (scene.segments || []).map(s => s.text).join(' ').trim().split(/\s+/);
+
+      const wpm = words.length >= 4
+        ? Math.round((words.length / elapsedSec) * 60)
+        : Math.round((expectedWords.length / elapsedSec) * 60);
+
+      const activeRms = rmsSamples.filter(v => v > 0.015);
+      let energyLabel = '양호', energyScore = 85;
+      if (activeRms.length > 5) {
+        const avg = activeRms.reduce((a, b) => a + b, 0) / activeRms.length;
+        const ratio = Math.max(...activeRms) / (avg || 0.01);
+        if (ratio >= 2.2) { energyLabel = '매우 우수'; energyScore = 95; }
+        else if (ratio < 1.55) { energyLabel = '평탄함'; energyScore = 72; }
+      }
+
+      const paceScore = (wpm > env.wpmMax + 10) ? 75 : (wpm < env.wpmMin - 15) ? 78 : 94;
+      const totalScore = Math.min(99, Math.max(60, Math.round(paceScore * 0.55 + energyScore * 0.45)));
+
+      document.getElementById('res-wpm').textContent = wpm;
+      document.getElementById('res-energy').textContent = energyLabel;
+      document.getElementById('res-score').textContent = `${totalScore}점`;
+      document.getElementById('res-feedback-text').textContent = '✨ AI 튜터가 코칭 피드백을 생성하고 있습니다...';
+      document.getElementById('mic-result-box').classList.remove('hidden');
+
+      let feedback = '';
+      try {
+        const res = await fetch('/api/coach', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(qaId ? {
+            kind: 'qa',
+            question: currentQaList().find(q => q.id === qaId)?.questionEn || '',
+            answer: spoken,
+            wpm,
+            energy: energyLabel,
+            mentorLang: scriptData.mentorLang || config.mentorLang
+          } : {
+            kind: 'practice',
+            sceneTitle: scene.title,
+            spoken,
+            wpm,
+            energy: energyLabel,
+            env: { name: env.name, wpmMin: env.wpmMin, wpmMax: env.wpmMax },
+            mentorLang: scriptData.mentorLang || config.mentorLang
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          feedback = String(data.feedback || '').trim();
+        }
+      } catch (e) {}
+
+      if (!feedback) {
+        feedback = `${env.name} 환경 권장 속도(${env.wpmMin}~${env.wpmMax} WPM) 대비 분당 ${wpm}단어로 말씀하셨습니다. 핵심 키워드 앞에서 0.3초만 숨을 고르고 성량 변화(${energyLabel})를 조금 더 살려주시면 전달력이 크게 올라갑니다.`;
+      }
+
+      lastFeedbackText = feedback;
+      // Save the attempt to Supabase history when it is configured (fire and forget)
+      fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneTitle: qaId ? 'Q&A' : scene.title, spoken, wpm, energy: energyLabel, feedback })
+      }).catch(() => {});
+      document.getElementById('res-feedback-text').textContent = feedback;
+
+      if (qaId) {
+        const box = document.getElementById(`qa-fb-${qaId}`);
+        if (box) {
+          box.classList.remove('hidden');
+          box.innerHTML = `<strong class="text-emerald-700">🔊 AI Q&A 코칭:</strong> ${escapeHtml(feedback)}`;
+        }
+      }
+
+      if (config.autoSpeakFeedback) {
+        const sid = ++playbackSessionId;
+        await speakNatural(feedback, 'ko-KR', sid, true);
+        elDockEq.classList.add('eq-paused');
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 13. RENDER ACADEMIC Q&A DRAWER
+    // ---------------------------------------------------------------------------
+    function renderQaDrawer() {
+      const container = document.getElementById('qa-drawer-list');
+      container.innerHTML = genQaBarHtml() + currentQaList().map((qa, idx) => `
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-extrabold text-slate-900">Q${idx + 1}. ${escapeHtml(qa.reviewer)}</span>
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">${escapeHtml(qa.tag)}</span>
+          </div>
+          <div class="p-3 rounded-xl bg-white border border-slate-200 flex flex-col gap-1">
+            <p class="font-en text-sm font-medium text-slate-900 leading-relaxed">"${escapeHtml(qa.questionEn)}"</p>
+            <p class="text-xs text-slate-500">${escapeHtml(qa.questionKo)}</p>
+          </div>
+          <p class="text-xs text-indigo-900 bg-indigo-50/80 border border-indigo-100 p-3 rounded-xl leading-relaxed">
+            <strong class="text-indigo-700">💡 방어 전략:</strong> ${escapeHtml(qa.defenseGuideKo)}
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" data-qa-listen="${qa.id}" class="btn-qa-listen px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition">🔊 질문 듣기</button>
+            <button type="button" data-qa-sample="${qa.id}" class="btn-qa-sample px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold transition">🎧 모범 답변</button>
+            <button type="button" id="qa-rec-btn-${qa.id}" data-qa-rec="${qa.id}" class="btn-qa-rec px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition">🎤 내 답변 녹음 & 코칭</button>
+          </div>
+          <div id="qa-fb-${qa.id}" class="hidden p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 leading-relaxed"></div>
+        </div>
+      `).join('');
+
+      document.getElementById('btn-gen-qa')?.addEventListener('click', generateQa);
+      container.querySelectorAll('.btn-qa-listen').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          stopPlayback();
+          const qa = currentQaList().find(q => q.id === btn.dataset.qaListen);
+          const sid = ++playbackSessionId;
+          await speakNatural(qa.questionEn, 'en-GB', sid, false, 'Kore');
+          elDockEq.classList.add('eq-paused');
+        });
+      });
+      container.querySelectorAll('.btn-qa-sample').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          stopPlayback();
+          const qa = currentQaList().find(q => q.id === btn.dataset.qaSample);
+          const sid = ++playbackSessionId;
+          await speakNatural(qa.sampleAnswerEn, 'en-GB', sid, false, 'Charon');
+          elDockEq.classList.add('eq-paused');
+        });
+      });
+      container.querySelectorAll('.btn-qa-rec').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.qaRec;
+          if (isRecording && activeQaRecordingId === id) stopRecording();
+          else { if (isRecording) stopRecording(); startRecording(id); }
+        });
+      });
+    }
+
+    // ---------------------------------------------------------------------------
+    // 14. GITHUB-READY INDEX.HTML DOWNLOAD
+    // ---------------------------------------------------------------------------
+    function downloadGitHubHtml() {
+      try {
+        const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'index.html';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('📦 index.html 다운로드 완료! GitHub 저장소에 올리면 바로 배포됩니다.', 'success');
+      } catch (e) {
+        showToast('파일 다운로드 중 오류가 발생했습니다.', 'error');
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 15. EVENT BINDINGS & INIT
+    // ---------------------------------------------------------------------------
+    elEnvSelect.addEventListener('change', (e) => {
+      const id = e.target.value;
+      const env = ENVIRONMENTS[id] || ENVIRONMENTS.academic;
+      config.environmentId = env.id;
+      config.voicePersona = env.persona;
+      updateHeaderMeta();
+      showToast(`${env.icon} "${env.name}" 환경으로 전환되었습니다 (권장 ${env.wpmMin}~${env.wpmMax} WPM)`, 'info');
+      if (id === 'custom') {
+        openSettingsDrawer();
+      }
+    });
+
+    // Built-in Full-Length Sample Switcher
+    btnSampleGlp1.addEventListener('click', () => {
+      stopPlayback();
+      scriptData = JSON.parse(JSON.stringify(FULL_SCRIPT_GLP1));
+      config.environmentId = 'academic';
+      config.targetLang = 'en-GB';
+      activeSceneIndex = 0; activeSegmentIndex = 0;
+      btnSampleGlp1.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold transition bg-white text-indigo-700 shadow-xs';
+      btnSampleFastInv.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition text-slate-600 hover:text-slate-900';
+      updateHeaderMeta();
+      renderTeleprompter();
+      showToast('🔬 GLP-1 학회 발표 6개 섹션 풀버전을 불러왔습니다.', 'success');
+    });
+
+    btnSampleFastInv.addEventListener('click', () => {
+      stopPlayback();
+      scriptData = JSON.parse(JSON.stringify(FULL_SCRIPT_FASTINVENTORY));
+      config.environmentId = 'corporate';
+      config.targetLang = 'en-GB';
+      activeSceneIndex = 0; activeSegmentIndex = 0;
+      btnSampleFastInv.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold transition bg-white text-indigo-700 shadow-xs';
+      btnSampleGlp1.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition text-slate-600 hover:text-slate-900';
+      updateHeaderMeta();
+      renderTeleprompter();
+      showToast('🏢 FastInventory 전체 10개 섹션 원본을 불러왔습니다.', 'success');
+    });
+
+    // Utility Toggles
+    btnToggleInlineCues.addEventListener('click', () => {
+      config.showInlineCues = !config.showInlineCues;
+      elTeleprompter.classList.toggle('hide-inline-cues', !config.showInlineCues);
+      btnToggleInlineCues.textContent = config.showInlineCues ? '✓ 제스처 인라인 표시' : '제스처 숨김';
+      btnToggleInlineCues.className = config.showInlineCues
+        ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold border transition bg-indigo-50 border-indigo-200 text-indigo-700'
+        : 'px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition bg-white border-slate-200 text-slate-500';
+    });
+
+    btnToggleMentorBriefing.addEventListener('click', () => {
+      config.enableMentorBriefing = !config.enableMentorBriefing;
+      btnToggleMentorBriefing.textContent = config.enableMentorBriefing ? '✓ 멘토 음성 브리핑' : '멘토 브리핑 끄기';
+      btnToggleMentorBriefing.className = config.enableMentorBriefing
+        ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold border transition bg-indigo-50 border-indigo-200 text-indigo-700'
+        : 'px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition bg-white border-slate-200 text-slate-500';
+      renderTeleprompter();
+    });
+
+    btnFontDec.addEventListener('click', () => {
+      config.fontScale = Math.max(0.85, +(config.fontScale - 0.1).toFixed(2));
+      elFontSizeLabel.textContent = `${Math.round(config.fontScale * 100)}%`;
+      elTeleprompter.style.setProperty('--prompter-size', `${(1.2 * config.fontScale).toFixed(2)}rem`);
+    });
+    btnFontInc.addEventListener('click', () => {
+      config.fontScale = Math.min(1.4, +(config.fontScale + 0.1).toFixed(2));
+      elFontSizeLabel.textContent = `${Math.round(config.fontScale * 100)}%`;
+      elTeleprompter.style.setProperty('--prompter-size', `${(1.2 * config.fontScale).toFixed(2)}rem`);
+    });
+
+    // Bottom Dock Controls
+    btnDockPlay.addEventListener('click', () => {
+      if (!isPlaying) {
+        playbackMode = 'full';
+        playFromPosition(activeSceneIndex, activeSegmentIndex, true);
+      } else {
+        isPaused = !isPaused;
+        if (currentAudioEl) isPaused ? currentAudioEl.pause() : currentAudioEl.play().catch(() => {});
+        if ('speechSynthesis' in window) isPaused ? window.speechSynthesis.pause() : window.speechSynthesis.resume();
+        updateDockButtons();
+      }
+    });
+
+    btnDockStop.addEventListener('click', stopPlayback);
+
+    btnDockShadow.addEventListener('click', () => {
+      playbackMode = 'shadow';
+      playFromPosition(activeSceneIndex, activeSegmentIndex, true);
+      showToast('🔁 문장별 쉐도잉 모드를 시작합니다. 문장이 끝나면 따라 말해보세요!', 'info');
+    });
+
+    btnDockSpeed.addEventListener('click', () => {
+      const idx = SPEED_STEPS.indexOf(config.speed);
+      config.speed = SPEED_STEPS[(idx + 1) % SPEED_STEPS.length];
+      btnDockSpeed.textContent = `${config.speed.toFixed(2)}x`;
+      if (currentAudioEl) currentAudioEl.playbackRate = config.speed;
+      showToast(`재생 속도: ${config.speed.toFixed(2)}x`, 'info');
+    });
+
+    btnDockMic.addEventListener('click', () => {
+      const env = getCurrentEnv();
+      const sc = scriptData.scenes[activeSceneIndex] || scriptData.scenes[0];
+      document.getElementById('mic-drawer-sub').textContent = `${env.name} 권장 ${env.wpmMin}~${env.wpmMax} WPM 기준 분석`;
+      document.getElementById('mic-section-title').textContent = `${sc.badge} · ${sc.title}`;
+      drawerMic.classList.remove('hidden');
+      setTimeout(resizeWaveform, 50);
+    });
+
+    // Upload Modal & Drag-and-Drop
+    document.getElementById('btn-open-upload').addEventListener('click', () => {
+      document.getElementById('upload-target-lang').value = config.targetLang;
+      document.getElementById('upload-mentor-lang').value = config.mentorLang;
+      modalUpload.classList.remove('hidden');
+    });
+    document.getElementById('btn-close-upload').addEventListener('click', () => modalUpload.classList.add('hidden'));
+
+    const dropzone = document.getElementById('file-dropzone');
+    const fileInput = document.getElementById('file-input');
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dropzone-active'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dropzone-active'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dropzone-active');
+      handleFilesSelected(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', (e) => { handleFilesSelected(e.target.files); fileInput.value = ''; });
+    document.getElementById('btn-clear-files').addEventListener('click', () => { attachedFiles = []; renderAttachedFiles(); });
+    document.getElementById('input-raw-text').addEventListener('input', updateRawTextStats);
+    document.getElementById('btn-generate-full-script').addEventListener('click', handleGenerateFullScript);
+
+    // Settings Drawer
+    function openSettingsDrawer() {
+      document.getElementById('custom-env-box').classList.toggle('hidden', config.environmentId !== 'custom');
+      document.getElementById('cfg-custom-venue').value = config.customVenue;
+      document.getElementById('cfg-custom-audience').value = config.customAudience;
+      document.getElementById('cfg-custom-tone').value = config.customTone;
+      document.getElementById('cfg-voice-engine').value = config.voiceEngine;
+      document.getElementById('cfg-voice-persona').value = config.voicePersona;
+      document.getElementById('cfg-target-lang').value = config.targetLang;
+      document.getElementById('cfg-mentor-lang').value = config.mentorLang;
+      document.getElementById('cfg-auto-feedback').checked = config.autoSpeakFeedback;
+      drawerSettings.classList.remove('hidden');
+    }
+    document.getElementById('btn-open-settings').addEventListener('click', openSettingsDrawer);
+    document.getElementById('btn-close-settings').addEventListener('click', () => drawerSettings.classList.add('hidden'));
+    document.getElementById('btn-save-settings').addEventListener('click', () => {
+      config.customVenue = document.getElementById('cfg-custom-venue').value.trim() || '맞춤형 발표';
+      config.customAudience = document.getElementById('cfg-custom-audience').value.trim() || '청중';
+      config.customTone = document.getElementById('cfg-custom-tone').value.trim() || '진정성 있는 톤';
+      config.voiceEngine = document.getElementById('cfg-voice-engine').value;
+      config.voicePersona = document.getElementById('cfg-voice-persona').value;
+      config.targetLang = document.getElementById('cfg-target-lang').value;
+      config.mentorLang = document.getElementById('cfg-mentor-lang').value;
+      config.autoSpeakFeedback = document.getElementById('cfg-auto-feedback').checked;
+      updateHeaderMeta();
+      drawerSettings.classList.add('hidden');
+      showToast('설정이 저장되었습니다.', 'success');
+    });
+    document.getElementById('btn-clear-cache').addEventListener('click', () => {
+      audioCache.forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
+      audioCache.clear();
+      document.getElementById('settings-cache-count').textContent = '0';
+      showToast('음성 캐시를 비웠습니다.', 'info');
+    });
+
+    // Mic & Q&A Drawers
+    document.getElementById('btn-close-mic').addEventListener('click', () => { if (isRecording) stopRecording(); drawerMic.classList.add('hidden'); });
+    document.getElementById('btn-toggle-record').addEventListener('click', () => { isRecording ? stopRecording() : startRecording(null); });
+    document.getElementById('btn-replay-coaching').addEventListener('click', async () => {
+      if (!lastFeedbackText) return;
+      stopPlayback();
+      const sid = ++playbackSessionId;
+      await speakNatural(lastFeedbackText, 'ko-KR', sid, true);
+      elDockEq.classList.add('eq-paused');
+    });
+
+    document.getElementById('btn-open-qa').addEventListener('click', () => drawerQa.classList.remove('hidden'));
+    document.getElementById('btn-close-qa').addEventListener('click', () => drawerQa.classList.add('hidden'));
+    document.getElementById('btn-download-github').addEventListener('click', downloadGitHubHtml);
+
+    // Close modals/drawers on backdrop click
+    [modalUpload, drawerSettings, drawerMic, drawerQa].forEach(overlay => {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          if (overlay === drawerMic && isRecording) stopRecording();
+          overlay.classList.add('hidden');
+        }
+      });
+    });
+
+    // Boot App
+    window.addEventListener('DOMContentLoaded', () => {
+      fetch('/api/health').then(r => r.json()).then(h => {
+        if (!h.ai) showToast('데모 모드: ANTHROPIC_API_KEY를 설정하면 AI 원고 생성·코칭·질문 기능이 켜집니다.', 'warn');
+        else if (!h.tts) showToast('브라우저 음성으로 재생합니다. GEMINI_API_KEY를 설정하면 뉴럴 음성이 켜집니다.', 'info');
+      }).catch(() => {});
+      updateHeaderMeta();
+      renderTeleprompter();
+      renderQaDrawer();
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

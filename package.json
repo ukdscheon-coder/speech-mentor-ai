@@ -1,0 +1,15 @@
+{
+  "name": "speech-mentor-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Speech Mentor AI: turn a script into a speech score, hear a model delivery, practise with coaching and rehearse reviewer Q&A.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run --outdir dist"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
