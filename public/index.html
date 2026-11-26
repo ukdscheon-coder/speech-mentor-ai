@@ -226,15 +226,6 @@
           </span>
         </div>
 
-        <!-- Quick Full-Length Sample Switcher -->
-        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
-          <button id="btn-sample-glp1" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition bg-white text-indigo-700 shadow-xs">
-            GLP-1 학회 풀버전
-          </button>
-          <button id="btn-sample-fastinv" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition text-slate-600 hover:text-slate-900">
-            FastInventory 전체 원본
-          </button>
-        </div>
       </div>
 
       <h1 id="script-title" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
@@ -642,375 +633,68 @@
     };
 
     // ---------------------------------------------------------------------------
-    // 1. FULL-LENGTH BUILT-IN DEFAULT 1: GLP-1 ACADEMIC CONFERENCE (6 FULL SECTIONS, ~3.5 MIN)
+    // BUILT-IN SAMPLE: Abraham Lincoln, "Gettysburg Address" (1863, public domain)
     // ---------------------------------------------------------------------------
-    const FULL_SCRIPT_GLP1 = {
-      title: "GLP-1 Physiological Mechanism & Bioactive Modulators (국제 학회 풀버전)",
-      environmentId: "academic",
-      targetLang: "en-GB",
+    const SAMPLE_SPEECH = {
+      title: "Gettysburg Address (1863, 공개 도메인 연설문 샘플)",
+      environmentId: "custom",
+      targetLang: "en-US",
       mentorLang: "ko-KR",
       scenes: [
         {
           badge: "Section 1",
-          title: "Title & Clinical Relevance (도입 및 연구 배경)",
-          mentorBriefing: "학회 발표의 첫 30초는 연구의 엄밀함을 보여주는 시간입니다. 간결하게 인사한 뒤, 합성 의약품 중심의 논의에서 벗어나 '내인성(endogenous) GLP-1 최적화'라는 연구의 핵심 질문을 선명하게 제시하세요.",
+          title: "Opening (건국의 이념)",
+          mentorBriefing: "짧고 단단한 문장으로 시작하세요. 숫자와 날짜를 또렷하게 말하고, 핵심 명제에서 잠시 멈추어 청중이 따라오게 하세요.",
           segments: [
             {
-              text: "Good morning, esteemed colleagues. Thank you for the opportunity to present our latest review on the physiological cascade of Glucagon-Like Peptide-1—GLP-1—and the bioactive nutritional compounds that enhance its endogenous efficacy.",
-              emphasisWords: ["physiological cascade", "GLP-1", "bioactive nutritional compounds", "endogenous efficacy"],
-              gestureCue: "청중 좌우 아이컨택 · 양손 개방",
+              text: "Four score and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal.",
+              emphasisWords: ["Four score and seven years ago", "new nation", "conceived in Liberty", "all men are created equal"],
+              gestureCue: "양손을 천천히 펼치며 청중 전체를 바라보기",
               slideCue: "타이틀 슬라이드 고정",
               pauseAfterMs: 1200,
               intonation: "down",
-              phonetics: [{ term: "endogenous", phonetic: "en-DOJ-uh-nus" }]
-            },
-            {
-              text: "While pharmaceutical GLP-1 receptor agonists have transformed obesity and type 2 diabetes management, long-term adherence, cost, and gastrointestinal tolerability remain major clinical barriers. Consequently, understanding how to safely potentiate our body's own GLP-1 secretion has become a critical frontier in metabolic medicine.",
-              emphasisWords: ["transformed", "adherence", "tolerability", "our body's own GLP-1", "critical frontier"],
-              gestureCue: "손가락 3개로 임상 장벽 나열",
-              slideCue: "임상 처방 한계점 차트 지시",
-              pauseAfterMs: 1400,
-              intonation: "down",
-              phonetics: [{ term: "gastrointestinal", phonetic: "gas-troh-in-TES-ti-nul" }]
+              phonetics: []
             }
           ]
         },
         {
           badge: "Section 2",
-          title: "Endogenous GLP-1 Physiological Cascade (4대 표적 기관 기전)",
-          mentorBriefing: "장내 L-세포에서 분비된 GLP-1이 췌장·위·뇌(시상하부)·간 4곳에 미치는 조율된 대사 작용을 또박또박 끊어 읽으세요. 의학 용어 앞에서는 0.3초 숨을 고릅니다.",
+          title: "Present Struggle (현재의 전쟁)",
+          mentorBriefing: "문장이 길어지므로 쉼표마다 호흡을 나누세요. '시험받고 있다'는 부분에서 목소리 강도를 살짝 높이세요.",
           segments: [
             {
-              text: "Secreted primarily by intestinal enteroendocrine L-cells in the distal ileum and colon upon nutrient ingestion, native GLP-1 orchestrates four tightly coordinated metabolic actions across the human body.",
-              emphasisWords: ["enteroendocrine L-cells", "distal ileum", "four tightly coordinated"],
-              gestureCue: "손가락 4개 펼쳐 구조 예고",
-              slideCue: "인체 4대 표적 기관 모식도 지시",
-              pauseAfterMs: 1200,
-              intonation: "down",
-              phonetics: [
-                { term: "enteroendocrine", phonetic: "en-ter-oh-EN-doh-krin" },
-                { term: "ileum", phonetic: "IL-ee-um" }
-              ]
-            },
-            {
-              text: "First, in the pancreas, it stimulates glucose-dependent insulin secretion while suppressing inappropriate glucagon release—minimising the risk of hypoglycaemia. Second, in the stomach, it delays gastric emptying, flattening postprandial glucose excursions.",
-              emphasisWords: ["pancreas", "glucose-dependent", "hypoglycaemia", "stomach", "gastric emptying", "postprandial"],
-              gestureCue: "왼손(췌장) → 오른손(위) 시선 교차",
-              slideCue: "인슐린·글루카곤 곡선 강조",
-              pauseAfterMs: 1300,
-              intonation: "down",
-              phonetics: [
-                { term: "hypoglycaemia", phonetic: "hy-poh-gly-SEE-mee-uh" },
-                { term: "postprandial", phonetic: "pohst-PRAN-dee-ul" }
-              ]
-            },
-            {
-              text: "Third, via vagal afferents and the hypothalamus, it activates central satiety circuits to reduce appetite. Finally, in the liver, it indirectly attenuates hepatic gluconeogenesis and lipid accumulation.",
-              emphasisWords: ["hypothalamus", "central satiety", "liver", "hepatic gluconeogenesis"],
-              gestureCue: "손바닥으로 뇌-간 축 부드럽게 연결",
-              slideCue: "시상하부 포만감 경로 하이라이트",
+              text: "Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting place for those who here gave their lives that that nation might live. It is altogether fitting and proper that we should do this.",
+              emphasisWords: ["great civil war", "testing whether", "can long endure", "final resting place", "altogether fitting and proper"],
+              gestureCue: "'battle-field'에서 한 손으로 지면을 가리키기",
+              slideCue: "전쟁 관련 사진 또는 지도 전환",
               pauseAfterMs: 1500,
               intonation: "down",
-              phonetics: [
-                { term: "hypothalamus", phonetic: "hy-poh-THAL-uh-mus" },
-                { term: "gluconeogenesis", phonetic: "gloo-koh-nee-oh-JEN-uh-sis" }
-              ]
+              phonetics: [{ term: "altogether", phonetic: "awl-tuh-GEH-thur" }]
             }
           ]
         },
         {
           badge: "Section 3",
-          title: "The DPP-4 Degradation Bottleneck (반감기 2분의 생리적 한계)",
-          mentorBriefing: "목소리 톤을 반 톤 낮추어 핵심 병목인 '혈장 반감기 2분 미만'을 부각하세요. 청중이 다음 섹션의 해결책(활성 성분)에 몰입하게 만드는 전환점입니다.",
+          title: "Closing Resolve (결의와 새로운 탄생)",
+          mentorBriefing: "마지막 문장은 가장 느리고 무게 있게 말하세요. 'of the people, by the people, for the people' 세 구절을 같은 리듬으로 끊어 읽으면 효과가 큽니다.",
           segments: [
             {
-              text: "However, endogenous GLP-1 faces an extraordinary physiological bottleneck. Immediately after entering circulation, it is cleaved and inactivated by the ubiquitous enzyme DPP-4—Dipeptidyl Peptidase-4.",
-              emphasisWords: ["However", "physiological bottleneck", "cleaved and inactivated", "DPP-4"],
-              gestureCue: "However에서 0.5초 정지 · 양손 반전",
-              slideCue: "DPP-4 효소 절단 도식 지시",
-              pauseAfterMs: 1300,
+              text: "But, in a larger sense, we can not dedicate, we can not consecrate, we can not hallow, this ground. The brave men, living and dead, who struggled here, have consecrated it, far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here.",
+              emphasisWords: ["can not dedicate", "can not consecrate", "can not hallow", "far above our poor power", "never forget"],
+              gestureCue: "문장마다 한 박자씩 쉬며 청중과 눈 맞추기",
+              slideCue: "청중 질문 대기 화면",
+              pauseAfterMs: 1400,
               intonation: "down",
-              phonetics: [{ term: "Dipeptidyl Peptidase-4", phonetic: "dy-PEP-ti-dil PEP-ti-dayz four" }]
+              phonetics: []
             },
             {
-              text: "This rapid enzymatic breakdown results in a plasma half-life of less than two minutes—meaning fewer than fifteen percent of secreted molecules ever reach systemic target receptors intact.",
-              emphasisWords: ["less than two minutes", "fewer than fifteen percent", "intact"],
-              gestureCue: "엄지·검지로 짧은 2분 간격 시각화",
-              slideCue: "혈중 농도 급감 그래프 피크 지시",
-              pauseAfterMs: 1600,
+              text: "It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us, that from these honored dead we take increased devotion to that cause for which they gave the last full measure of devotion. We here highly resolve that these dead shall not have died in vain, that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.",
+              emphasisWords: ["unfinished work", "last full measure of devotion", "not have died in vain", "new birth of freedom", "of the people, by the people, for the people", "shall not perish from the earth"],
+              gestureCue: "마지막 문장에서 양손을 모아 천천히 내리기",
+              slideCue: "마무리 문장 화면 고정",
+              pauseAfterMs: 2000,
               intonation: "down",
-              phonetics: []
-            }
-          ]
-        },
-        {
-          badge: "Section 4",
-          title: "Three Nutritional Pathways for GLP-1 Optimization (핵심 활성 성분 3대 경로)",
-          mentorBriefing: "논문의 핵심 하이라이트입니다. 1) 발효성 식이섬유(SCFA→FFAR2/3), 2) 생리활성 펩타이드(유청단백·글루타민), 3) 폴리페놀·알칼로이드(베르베린·EGCG 이중 기전)의 인과관계를 분명히 끊어 전달하세요.",
-          segments: [
-            {
-              text: "To overcome this bottleneck nutritionally, our systematic analysis identifies three distinct bioactive pathways. First, fermentable dietary fibres—particularly inulin, resistant starch, and oat beta-glucan.",
-              emphasisWords: ["three distinct bioactive pathways", "First", "fermentable dietary fibres", "inulin", "beta-glucan"],
-              gestureCue: "손가락 1 제시 · 명확한 구조화",
-              slideCue: "3대 영양 경로 비교표 1행 지시",
-              pauseAfterMs: 1100,
-              intonation: "down",
-              phonetics: [{ term: "inulin", phonetic: "IN-yoo-lin" }]
-            },
-            {
-              text: "Colonic microbiota ferment these fibres into short-chain fatty acids—acetate, propionate, and butyrate—which bind directly to FFAR2 and FFAR3 receptors on L-cells, driving sustained GLP-1 synthesis.",
-              emphasisWords: ["short-chain fatty acids", "FFAR2 and FFAR3", "sustained GLP-1 synthesis"],
-              gestureCue: "발효 → 수용체 결합 흐름 손짓",
-              slideCue: "SCFA-FFAR 수용체 활성화 화살표",
-              pauseAfterMs: 1300,
-              intonation: "down",
-              phonetics: [{ term: "butyrate", phonetic: "BYOO-tuh-rayt" }]
-            },
-            {
-              text: "Second, specific bioactive peptides and amino acids—notably hydrolysed whey protein and L-glutamine. Unlike slow fibre fermentation, these trigger rapid calcium-dependent L-cell depolarization, producing an immediate pre-meal GLP-1 surge.",
-              emphasisWords: ["Second", "whey protein", "L-glutamine", "L-cell depolarization", "immediate pre-meal"],
-              gestureCue: "손가락 2 제시 · 즉각적 속도감 강조",
-              slideCue: "식전 유청단백 GLP-1 급등 곡선",
-              pauseAfterMs: 1200,
-              intonation: "down",
-              phonetics: [{ term: "depolarization", phonetic: "dee-poh-luh-ry-ZAY-shun" }]
-            },
-            {
-              text: "Third, plant polyphenols and alkaloids—specifically Berberine and green tea EGCG. Remarkably, these compounds exhibit a dual mechanism: stimulating intestinal L-cell secretion while exerting mild, natural DPP-4 inhibition to extend active peptide stability.",
-              emphasisWords: ["Third", "Berberine", "EGCG", "dual mechanism", "natural DPP-4 inhibition"],
-              gestureCue: "왼손(분비 촉진) + 오른손(분해 억제) 시너지",
-              slideCue: "이중 기전(Dual Mechanism) 도표 강조",
-              pauseAfterMs: 1500,
-              intonation: "down",
-              phonetics: [
-                { term: "Berberine", phonetic: "BER-buh-reen" },
-                { term: "alkaloids", phonetic: "AL-kuh-loydz" }
-              ]
-            }
-          ]
-        },
-        {
-          badge: "Section 5",
-          title: "Bioavailability & Microbiome Synergy (생체이용률과 장내 국소 작용)",
-          mentorBriefing: "심사위원들이 가장 먼저 지적할 '경구 생체이용률 한계'를 발표 중에 선제적으로 짚어주면 학술적 방어력이 크게 올라갑니다.",
-          segments: [
-            {
-              text: "A frequent question regarding Berberine and polyphenols is their low systemic oral bioavailability. Crucially, however, enteroendocrine L-cells and mucosal DPP-4 are densely concentrated within the intestinal lumen itself.",
-              emphasisWords: ["low systemic oral bioavailability", "Crucially", "intestinal lumen itself"],
-              gestureCue: "손바닥을 펼쳐 반론을 여유롭게 수용",
-              slideCue: "장 점막 국소 농도 단면도 지시",
-              pauseAfterMs: 1300,
-              intonation: "down",
-              phonetics: [{ term: "bioavailability", phonetic: "by-oh-uh-vay-luh-BIL-ih-tee" }]
-            },
-            {
-              text: "Therefore, these compounds do not require high plasma levels to be effective; they act locally via paracrine signalling while selectively enriching Akkermansia and SCFA-producing bacteria—creating a self-reinforcing metabolic loop.",
-              emphasisWords: ["act locally", "paracrine signalling", "Akkermansia", "self-reinforcing"],
-              gestureCue: "양손으로 순환 고리(Loop) 동작",
-              slideCue: "장내 미생물 시너지 루프 슬라이드",
-              pauseAfterMs: 1400,
-              intonation: "down",
-              phonetics: [
-                { term: "paracrine", phonetic: "PAR-uh-krin" },
-                { term: "Akkermansia", phonetic: "ak-er-MAN-see-uh" }
-              ]
-            }
-          ]
-        },
-        {
-          badge: "Section 6",
-          title: "Conclusion & Clinical Perspective (결론 및 임상적 의의)",
-          mentorBriefing: "과장 없는 객관적 선 긋기가 학회 발표의 품격을 결정합니다. 천연 성분의 보완적 가치를 단호히 정리한 뒤, 마지막 질문 유도 문장에서 여유로운 미소를 지으세요.",
-          segments: [
-            {
-              text: "In conclusion, nutritional modulators do not replicate the supraphysiological potency of injectable GLP-1 receptor agonists. Rather, combining fermentable fibres, bioactive peptides, and dual-acting polyphenols offers a synergistic, well-tolerated, and sustainable strategy for prediabetes management and post-pharmacotherapy maintenance.",
-              emphasisWords: ["do not replicate", "supraphysiological", "synergistic", "sustainable strategy", "post-pharmacotherapy maintenance"],
-              gestureCue: "차분히 선을 긋고 양손으로 핵심 가치 통합",
-              slideCue: "Take-home Message 결론 슬라이드",
-              pauseAfterMs: 1600,
-              intonation: "down",
-              phonetics: [{ term: "supraphysiological", phonetic: "soo-pruh-fiz-ee-uh-LOJ-ih-kul" }]
-            },
-            {
-              text: "Thank you very much for your attention. I would now be delighted to take your questions.",
-              emphasisWords: ["Thank you", "delighted to take your questions"],
-              gestureCue: "양손바닥 위로 열어 Q&A 환영",
-              slideCue: "화면에서 시선 떼고 좌장·청중 정면 응시",
-              pauseAfterMs: 1200,
-              intonation: "down",
-              phonetics: []
-            }
-          ]
-        }
-      ]
-    };
-
-    // ---------------------------------------------------------------------------
-    // 2. FULL-LENGTH BUILT-IN DEFAULT 2: COMPLETE 10-SECTION FASTINVENTORY SCRIPT
-    // ---------------------------------------------------------------------------
-    const FULL_SCRIPT_FASTINVENTORY = {
-      title: "FastInventory UK Field Service Pilot — 전체 10개 섹션 원본",
-      environmentId: "corporate",
-      targetLang: "en-GB",
-      mentorLang: "ko-KR",
-      scenes: [
-        {
-          badge: "1. Opening",
-          title: "Opening (도입 및 인사)",
-          mentorBriefing: "감사 인사로 차분히 시작하며, 영국 현장 엔지니어의 실질적인 재고·반품 과제를 해결하기 위해 만든 독립 파일럿임을 명확히 전달하세요.",
-          segments: [
-            {
-              text: "Thank you for the opportunity to demonstrate FastInventory. I developed this independent pilot to address practical inventory and returns challenges faced by field service engineers in the UK.",
-              emphasisWords: ["FastInventory", "independent pilot", "practical inventory and returns challenges", "UK"],
-              gestureCue: "청중 전체 아이컨택 · 가슴 높이 손 모으기",
-              slideCue: "FastInventory 타이틀 화면 표시",
-              pauseAfterMs: 1200,
-              intonation: "down",
-              phonetics: []
-            }
-          ]
-        },
-        {
-          badge: "2. Why I built it",
-          title: "Why I built it (개발 배경)",
-          mentorBriefing: "'most of the working day'로 시간 소모의 체감도를 높이고, 'However' 뒤에 잠시 멈춰 시스템 기록과 실물 재고의 불일치를 강조하세요.",
-          segments: [
-            {
-              text: "Currently, inventory checking is often a manual process. It can take an engineer most of the working day. However, the recorded inventory does not always match the stock an engineer physically holds.",
-              emphasisWords: ["manual process", "most of the working day", "However", "not always match", "physically holds"],
-              gestureCue: "왼손(시스템 기록) vs 오른손(실물 재고) 대비",
-              slideCue: "현재 수동 재고 점검 프로세스 슬라이드",
-              pauseAfterMs: 1400,
-              intonation: "down",
-              phonetics: []
-            }
-          ]
-        },
-        {
-          badge: "3. Missing parts",
-          title: "Missing or misallocated parts (누락·오배정 부품)",
-          mentorBriefing: "불평이 아닌 객관적 사실 전달(Fact-based) 톤을 유지하며 병원 직배송 사례를 담담히 설명하세요.",
-          segments: [
-            {
-              text: "For example, a part may be shipped directly to a hospital but not received, while it still appears in the engineer's inventory. This makes accurate stock checking and sharing parts between engineers more difficult.",
-              emphasisWords: ["shipped directly", "not received", "still appears", "sharing parts"],
-              gestureCue: "병원 직배송 → 미수령 흐름 한 손으로 제시",
-              slideCue: "오배정 부품 사례 도식 지시",
-              pauseAfterMs: 1300,
-              intonation: "down",
-              phonetics: []
-            }
-          ]
-        },
-        {
-          badge: "4. byBox return",
-          title: "The byBox return issue (byBox 반품 추적 공백)",
-          mentorBriefing: "엔지니어 손을 떠난 부품이 물류 과정에서 계속 할당된 채 남아있는 모순을 분명히 짚어주세요.",
-          segments: [
-            {
-              text: "There is a similar issue with returns. A part placed in a byBox collection point may still remain assigned to the engineer during the logistics process, even though the engineer no longer has it.",
-              emphasisWords: ["returns", "byBox", "still remain assigned", "even though", "no longer has it"],
-              gestureCue: "앞에 내려놓는 동작 → 양손 가볍게 털어내기",
-              slideCue: "byBox 반품 공백 구간 하이라이트",
-              pauseAfterMs: 1300,
-              intonation: "down",
-              phonetics: []
-            }
-          ]
-        },
-        {
-          badge: "5. The objective",
-          title: "The objective (핵심 목표 3가지)",
-          mentorBriefing: "에너지를 15% 올리고 3가지 목표(시간 절감, 가시성 개선, 추적성 강화)를 손가락으로 세며 또박또박 끊어 읽으세요.",
-          segments: [
-            {
-              text: "My aim is to reduce unnecessary time spent checking stock, improve the visibility of available parts, and strengthen traceability for part usage, returns and disposal.",
-              emphasisWords: ["reduce", "improve the visibility", "strengthen traceability"],
-              gestureCue: "손가락 1 · 2 · 3 차례로 펼치기",
-              slideCue: "3대 목표 아이콘 슬라이드 지시",
-              pauseAfterMs: 1400,
-              intonation: "down",
-              phonetics: [{ term: "traceability", phonetic: "tray-suh-BIL-ih-tee" }]
-            }
-          ]
-        },
-        {
-          badge: "6. Live demo",
-          title: "Live demonstration (라이브 워크플로우 시연)",
-          mentorBriefing: "화면 조작과 목소리 박자를 맞추기 위해 속도를 약간 늦추고, First · Next 연결어를 또박또박 강조하세요.",
-          segments: [
-            {
-              text: "Let me show you the Pilot workflow. First, the engineer registers their details. Next, they can scan a part using the camera or a photo, then choose to add it to stock or record its use. The Inventory tab shows locally recorded items, and the Returns tab demonstrates a return tracking process.",
-              emphasisWords: ["Pilot workflow", "First", "Next", "scan a part", "Inventory tab", "Returns tab"],
-              gestureCue: "검지 대신 손바닥을 펴서 화면 탭 지시",
-              slideCue: "라이브 데모 앱 화면 전환 (Inventory → Returns)",
-              pauseAfterMs: 1400,
-              intonation: "down",
-              phonetics: []
-            }
-          ]
-        },
-        {
-          badge: "7. Traceability",
-          title: "Returns and traceability (반품 단계별 기록)",
-          mentorBriefing: "현재 기록이 실제 물류 시스템 확정이 아닌 로컬 시연용 기록임을 명확히 구분해 오해를 방지하세요.",
-          segments: [
-            {
-              text: "The pilot is designed to deduct a returned part from available engineer stock and record stages such as return created, collection, transit and receipt. At this stage, these are local demonstration records, not confirmations from the company's logistics systems.",
-              emphasisWords: ["deduct", "return created, collection, transit and receipt", "local demonstration records", "not confirmations"],
-              gestureCue: "4단계 흐름을 왼→오른쪽으로 부드럽게 이동",
-              slideCue: "반품 상태 타임라인 UI 지시",
-              pauseAfterMs: 1400,
-              intonation: "down",
-              phonetics: []
-            }
-          ]
-        },
-        {
-          badge: "8. On-device",
-          title: "On-device approach (보안 및 회사 정책 준수)",
-          mentorBriefing: "보안 민감도가 높은 구간입니다. 목소리를 반 톤 낮추고 부정어 'not'을 명확히 끊어 신뢰를 구축하세요.",
-          segments: [
-            {
-              text: "To respect company policy, the current pilot stores information on the device. Imported parts records are saved locally for demonstration purposes. This is not a live corporate database and it does not automatically synchronise inventory between engineers.",
-              emphasisWords: ["respect company policy", "on the device", "not a live corporate database", "does not automatically synchronise"],
-              gestureCue: "신중한 저음 · 양손을 안정적으로 모으기",
-              slideCue: "로컬 온디바이스 보안 아키텍처 도식",
-              pauseAfterMs: 1400,
-              intonation: "down",
-              phonetics: [{ term: "synchronise", phonetic: "SING-kruh-nyz" }]
-            }
-          ]
-        },
-        {
-          badge: "9. Integration",
-          title: "Integration approach (기존 시스템 연동 방향)",
-          mentorBriefing: "기존 사내 앱을 대체하려는 것이 아니라 IT·보안·운영 검토를 거쳐 승인 시 연동 가능하다는 협력적 태도를 보여주세요.",
-          segments: [
-            {
-              text: "FastInventory is not intended to replace existing company applications or processes. If the company approves, the workflow could potentially be connected to authorised inventory and logistics systems, subject to IT, Security and operational review.",
-              emphasisWords: ["not intended to replace", "If the company approves", "IT, Security and operational review"],
-              gestureCue: "양손을 가슴 앞에서 부드럽게 옆으로 벌리기",
-              slideCue: "향후 API 연동 검토 로드맵 표시",
-              pauseAfterMs: 1400,
-              intonation: "down",
-              phonetics: []
-            }
-          ]
-        },
-        {
-          badge: "10. Closing",
-          title: "Closing (마무리 및 피드백 요청)",
-          mentorBriefing: "따뜻하고 열린 태도로 마무리하며, 마지막 'Thank you' 전에 1초 멈춤을 두어 여유를 남기세요.",
-          segments: [
-            {
-              text: "Today, I am presenting the operational problem and a possible solution, not asking for immediate adoption of an unsupported app. I would appreciate your feedback on the workflow, the ownership and return process, and the most valuable next steps. Thank you.",
-              emphasisWords: ["operational problem", "possible solution", "appreciate your feedback", "most valuable next steps", "Thank you"],
-              gestureCue: "양손바닥을 위로 향해 여는 피드백 유도 제스처",
-              slideCue: "Q&A 및 피드백 요청 슬라이드",
-              pauseAfterMs: 1500,
-              intonation: "down",
-              phonetics: []
+              phonetics: [{ term: "hallow", phonetic: "HAL-oh" }]
             }
           ]
         }
@@ -1070,7 +754,7 @@
     };
 
     const SPEED_STEPS = [0.85, 1.0, 1.15];
-    let scriptData = JSON.parse(JSON.stringify(FULL_SCRIPT_GLP1));
+    let scriptData = JSON.parse(JSON.stringify(SAMPLE_SPEECH));
     let activeSceneIndex = 0;
     let activeSegmentIndex = 0;
     let playbackMode = 'full'; // 'full' | 'shadow'
@@ -1112,8 +796,6 @@
     const elScriptTitle = document.getElementById('script-title');
     const elTeleprompter = document.getElementById('teleprompter-container');
 
-    const btnSampleGlp1 = document.getElementById('btn-sample-glp1');
-    const btnSampleFastInv = document.getElementById('btn-sample-fastinv');
     const btnToggleInlineCues = document.getElementById('toggle-inline-cues');
     const btnToggleMentorBriefing = document.getElementById('toggle-mentor-briefing');
     const btnFontDec = document.getElementById('btn-font-dec');
@@ -2454,33 +2136,6 @@
       if (id === 'custom') {
         openSettingsDrawer();
       }
-    });
-
-    // Built-in Full-Length Sample Switcher
-    btnSampleGlp1.addEventListener('click', () => {
-      stopPlayback();
-      scriptData = JSON.parse(JSON.stringify(FULL_SCRIPT_GLP1));
-      config.environmentId = 'academic';
-      config.targetLang = 'en-GB';
-      activeSceneIndex = 0; activeSegmentIndex = 0;
-      btnSampleGlp1.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold transition bg-white text-indigo-700 shadow-xs';
-      btnSampleFastInv.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition text-slate-600 hover:text-slate-900';
-      updateHeaderMeta();
-      renderTeleprompter();
-      showToast('🔬 GLP-1 학회 발표 6개 섹션 풀버전을 불러왔습니다.', 'success');
-    });
-
-    btnSampleFastInv.addEventListener('click', () => {
-      stopPlayback();
-      scriptData = JSON.parse(JSON.stringify(FULL_SCRIPT_FASTINVENTORY));
-      config.environmentId = 'corporate';
-      config.targetLang = 'en-GB';
-      activeSceneIndex = 0; activeSegmentIndex = 0;
-      btnSampleFastInv.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold transition bg-white text-indigo-700 shadow-xs';
-      btnSampleGlp1.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition text-slate-600 hover:text-slate-900';
-      updateHeaderMeta();
-      renderTeleprompter();
-      showToast('🏢 FastInventory 전체 10개 섹션 원본을 불러왔습니다.', 'success');
     });
 
     // Utility Toggles
