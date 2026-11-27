@@ -229,7 +229,7 @@
       </div>
 
       <h1 id="script-title" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
-        GLP-1 Physiological Mechanism & Bioactive Modulators (국제 학회 풀버전)
+        Gettysburg Address (1863, 공개 도메인 샘플)
       </h1>
     </div>
 
@@ -369,7 +369,7 @@
             <label for="input-raw-text" class="text-xs font-bold text-slate-700">원고 텍스트 (직접 입력 또는 파일에서 자동 추출)</label>
             <span id="text-stats-label" class="text-[11px] font-mono text-slate-500">0자 · 예상 0분 0초</span>
           </div>
-          <textarea id="input-raw-text" rows="6" placeholder="한국어 또는 영어로 발표 원고, 논문 초록, 설교문 등을 입력하거나 위에서 사진/PDF/PPT/Word/HWP 파일을 첨부하세요..." class="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm text-slate-800 leading-relaxed"></textarea>
+          <textarea id="input-raw-text" rows="6" placeholder="발표 원고, 논문 초록, 설교문 등을 원하는 언어로 입력하거나 위에서 사진/PDF/PPT/Word/HWP 파일을 첨부하세요..." class="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm text-slate-800 leading-relaxed"></textarea>
         </div>
 
         <!-- Target Language Quick Row -->
@@ -390,9 +390,14 @@
           <div>
             <label class="block text-[11px] font-bold text-slate-500 mb-1">멘토 코칭 언어</label>
             <select id="upload-mentor-lang" class="w-full p-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800">
-              <option value="ko-KR">🇰🇷 한국어 멘토</option>
-              <option value="en-GB">🇬🇧 영어 멘토 (UK)</option>
-              <option value="en-US">🇺🇸 영어 멘토 (US)</option>
+              <option value="en-GB">🇬🇧 British English</option>
+              <option value="en-US">🇺🇸 American English</option>
+              <option value="ko-KR">🇰🇷 한국어</option>
+              <option value="ja-JP">🇯🇵 日本語</option>
+              <option value="es-ES">🇪🇸 Español</option>
+              <option value="fr-FR">🇫🇷 Français</option>
+              <option value="de-DE">🇩🇪 Deutsch</option>
+              <option value="zh-CN">🇨🇳 中文</option>
             </select>
           </div>
         </div>
@@ -472,9 +477,14 @@
           <div>
             <label class="block text-xs font-bold text-slate-600 mb-1.5">멘토 코칭 언어</label>
             <select id="cfg-mentor-lang" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800">
+              <option value="en-GB">🇬🇧 British English</option>
+              <option value="en-US">🇺🇸 American English</option>
               <option value="ko-KR">🇰🇷 한국어</option>
-              <option value="en-GB">🇬🇧 영어 (UK)</option>
-              <option value="en-US">🇺🇸 영어 (US)</option>
+              <option value="ja-JP">🇯🇵 日本語</option>
+              <option value="es-ES">🇪🇸 Español</option>
+              <option value="fr-FR">🇫🇷 Français</option>
+              <option value="de-DE">🇩🇪 Deutsch</option>
+              <option value="zh-CN">🇨🇳 中文</option>
             </select>
           </div>
         </div>
@@ -707,30 +717,30 @@
     const REVIEWER_QA_LIST = [
       {
         id: 'qa-1',
-        reviewer: 'Prof. Sarah Jenkins (좌장 · 내분비대사학)',
-        tag: '생체이용률 한계',
-        questionEn: "While Berberine and EGCG show notable DPP-4 inhibition in vitro, their oral bioavailability in humans is notoriously low. How do you reconcile this limitation with your proposed dual mechanism?",
-        questionKo: "Berberine과 EGCG가 시험관에서는 DPP-4 억제 효과를 보이지만 인체 경구 생체이용률이 매우 낮습니다. 이 한계를 이중 기전과 어떻게 조화시키십니까?",
-        defenseGuideKo: "전신 생체이용률 한계를 솔직히 인정한 뒤, L-세포와 점막 DPP-4가 장관 내강(intestinal lumen)에 밀집해 있어 국소 작용(local paracrine action)과 미생물 조절로 충분히 유의미한 효과를 낸다고 답변하세요.",
-        sampleAnswerEn: "We fully acknowledge their low systemic bioavailability. However, because enteroendocrine L-cells and mucosal DPP-4 are densely located within the intestinal lumen, Berberine and EGCG exert meaningful local paracrine effects and modulate gut microbiota without requiring high systemic plasma concentrations."
+        reviewer: 'Prof. Helen Carter (좌장 · 미국사)',
+        tag: '역사적 맥락',
+        questionTarget: "Lincoln frames the nation as founded on equality. How would you answer critics who see the 1776 principle as a compromise?",
+        questionMentor: "링컨은 이 나라가 평등의 명제 위에 세워졌다고 말합니다. 1776년의 원칙을 타협이라고 보는 비판에 어떻게 답하시겠습니까?",
+        defenseGuideMentor: "이상과 당시 현실 사이의 간극을 먼저 인정하고, 연설이 그 이상을 다시 붙잡자는 호소였음을 설명하세요.",
+        sampleAnswerTarget: "I would acknowledge the gap between the ideal and the reality of 1776. The speech does not claim the principle was already fulfilled. It asks the living to finish the work, which is why the principle still matters."
       },
       {
         id: 'qa-2',
-        reviewer: 'Dr. Marcus Vance (심사위원 · 마이크로바이옴)',
-        tag: '개인별 미생물 편차',
-        questionEn: "Given the high inter-individual variability in human gut microbiomes, wouldn't the SCFA-driven GLP-1 response from fermentable fibres be too inconsistent clinically?",
-        questionKo: "사람마다 장내 미생물 구성 편차가 매우 큰데, 발효성 식이섬유 기반 GLP-1 반응의 일관성이 임상적으로 너무 떨어지지 않을까요?",
-        defenseGuideKo: "바로 그 편차를 보완하기 위해 식이섬유 단독이 아닌 '직접 L-세포를 자극하는 유청 펩타이드·글루타민'을 결합한 다중 경로(multi-pathway) 전략을 제안했음을 강조하세요.",
-        sampleAnswerEn: "Microbiome variability is indeed a critical variable. That is precisely why we advocate a multi-pathway combination rather than fibre alone: bioactive peptides and L-glutamine directly trigger L-cell depolarization independently of microbial fermentation, providing a reliable baseline response."
+        reviewer: 'Dr. Marcus Lee (연설 분석)',
+        tag: '수사 기법',
+        questionTarget: "The address is under three hundred words. Why do you think it has lasted longer than the longer speeches given that day?",
+        questionMentor: "이 연설은 300단어 아래로 짧습니다. 같은 날 더 길게 연설한 다른 연사들보다 오래 기억되는 이유는 무엇이라고 보십니까?",
+        defenseGuideMentor: "짧은 문장, 반복 구조, 청중이 함께 기억할 수 있는 리듬을 근거로 드세요.",
+        sampleAnswerTarget: "The sentences are short and built on repetition, such as 'we can not dedicate'. Listeners can carry that rhythm home, which is one reason a short speech can outlast longer ones."
       },
       {
         id: 'qa-3',
-        reviewer: 'Prof. Kenji Takahashi (심사위원 · 임상시험)',
-        tag: '임상 2상 설계 & 타깃군',
-        questionEn: "If you were to design a Phase 2 clinical trial for this formulation, what primary endpoint and patient cohort would you select compared to injectable GLP-1 agonists?",
-        questionKo: "임상 2상을 설계한다면 어떤 1차 평가지표와 환자군을 선택하시겠습니까?",
-        defenseGuideKo: "1차 지표로 식후 활성 GLP-1 AUC와 혈당 변동성을 제시하고, 타깃군으로 전당뇨(prediabetes), 약물 불내성 환자, 또는 주사제 중단 후 유지기(maintenance phase) 코호트를 제안하세요.",
-        sampleAnswerEn: "Our primary endpoints would be postprandial active GLP-1 AUC and glycemic variability. Rather than replacing injectables in severe obesity, the optimal cohorts are individuals with prediabetes, drug-intolerant patients, or those in post-pharmacotherapy weight maintenance."
+        reviewer: 'Dr. Anna Novak (청중 대표)',
+        tag: '현대적 적용',
+        questionTarget: "What does 'government of the people, by the people, for the people' mean to a modern audience that is sceptical of its institutions?",
+        questionMentor: "'국민의, 국민에 의한, 국민을 위한 정부'라는 말은 제도에 회의적인 현대 청중에게 어떤 의미가 있습니까?",
+        defenseGuideMentor: "이 문장을 권리의 선언이자 시민의 책임으로 해석하고, 현실의 비판을 받아들이는 태도를 보이세요.",
+        sampleAnswerTarget: "For a sceptical audience, the phrase is a standard rather than a boast. It asks citizens to keep checking whether institutions serve them, and that check is the work the speech leaves to us."
       }
     ];
 
@@ -1797,7 +1807,7 @@
         const res = await fetch('/api/qa', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: scriptData.title, text, mentorLang: scriptData.mentorLang || config.mentorLang })
+          body: JSON.stringify({ title: scriptData.title, text, targetLang: scriptData.targetLang || config.targetLang, mentorLang: scriptData.mentorLang || config.mentorLang })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -1876,7 +1886,7 @@
         speechRecognition = new SpeechRec();
         speechRecognition.continuous = true;
         speechRecognition.interimResults = true;
-        speechRecognition.lang = qaId ? 'en-GB' : (scriptData.targetLang || config.targetLang);
+        speechRecognition.lang = scriptData.targetLang || config.targetLang;
         speechRecognition.onresult = (ev) => {
           let fin = '', inter = '';
           for (let i = 0; i < ev.results.length; i++) {
@@ -1998,7 +2008,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(qaId ? {
             kind: 'qa',
-            question: currentQaList().find(q => q.id === qaId)?.questionEn || '',
+            question: currentQaList().find(q => q.id === qaId)?.questionTarget || '',
             answer: spoken,
             wpm,
             energy: energyLabel,
@@ -2042,7 +2052,7 @@
 
       if (config.autoSpeakFeedback) {
         const sid = ++playbackSessionId;
-        await speakNatural(feedback, 'ko-KR', sid, true);
+        await speakNatural(feedback, scriptData.mentorLang || config.mentorLang, sid, true);
         elDockEq.classList.add('eq-paused');
       }
     }
@@ -2059,11 +2069,11 @@
             <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">${escapeHtml(qa.tag)}</span>
           </div>
           <div class="p-3 rounded-xl bg-white border border-slate-200 flex flex-col gap-1">
-            <p class="font-en text-sm font-medium text-slate-900 leading-relaxed">"${escapeHtml(qa.questionEn)}"</p>
-            <p class="text-xs text-slate-500">${escapeHtml(qa.questionKo)}</p>
+            <p class="font-en text-sm font-medium text-slate-900 leading-relaxed">"${escapeHtml(qa.questionTarget)}"</p>
+            <p class="text-xs text-slate-500">${escapeHtml(qa.questionMentor)}</p>
           </div>
           <p class="text-xs text-indigo-900 bg-indigo-50/80 border border-indigo-100 p-3 rounded-xl leading-relaxed">
-            <strong class="text-indigo-700">💡 방어 전략:</strong> ${escapeHtml(qa.defenseGuideKo)}
+            <strong class="text-indigo-700">💡 방어 전략:</strong> ${escapeHtml(qa.defenseGuideMentor)}
           </p>
           <div class="flex flex-wrap gap-2">
             <button type="button" data-qa-listen="${qa.id}" class="btn-qa-listen px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition">🔊 질문 듣기</button>
@@ -2080,7 +2090,7 @@
           stopPlayback();
           const qa = currentQaList().find(q => q.id === btn.dataset.qaListen);
           const sid = ++playbackSessionId;
-          await speakNatural(qa.questionEn, 'en-GB', sid, false, 'Kore');
+          await speakNatural(qa.questionTarget, scriptData.targetLang || config.targetLang, sid, false, 'Kore');
           elDockEq.classList.add('eq-paused');
         });
       });
@@ -2089,7 +2099,7 @@
           stopPlayback();
           const qa = currentQaList().find(q => q.id === btn.dataset.qaSample);
           const sid = ++playbackSessionId;
-          await speakNatural(qa.sampleAnswerEn, 'en-GB', sid, false, 'Charon');
+          await speakNatural(qa.sampleAnswerTarget, scriptData.targetLang || config.targetLang, sid, false, 'Charon');
           elDockEq.classList.add('eq-paused');
         });
       });
@@ -2271,7 +2281,7 @@
       if (!lastFeedbackText) return;
       stopPlayback();
       const sid = ++playbackSessionId;
-      await speakNatural(lastFeedbackText, 'ko-KR', sid, true);
+      await speakNatural(lastFeedbackText, scriptData.mentorLang || config.mentorLang, sid, true);
       elDockEq.classList.add('eq-paused');
     });
 

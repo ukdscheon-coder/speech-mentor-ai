@@ -8,13 +8,13 @@ export default async function qa(request, env) {
   const bad = methodNotAllowed(request.method, 'POST');
   if (bad) return bad;
 
-  const { title = '', text = '', mentorLang = 'ko-KR' } = await readJson(request);
+  const { title = '', text = '', mentorLang = 'ko-KR', targetLang = 'en-GB' } = await readJson(request);
   if (!text.trim()) return json({ error: 'Send the script text.' }, 400);
   if (!hasClaude(env)) return json({ source: 'local', qa: [] });
 
   try {
     const out = await callClaude(env, {
-      system: reviewerPrompt(mentorLang),
+      system: reviewerPrompt(mentorLang, targetLang),
       content: [{ type: 'text', text: `Talk title: ${title}\n\nScript:\n${text.slice(0, 12000)}` }],
       maxTokens: 3000,
     });
