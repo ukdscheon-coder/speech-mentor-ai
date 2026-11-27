@@ -151,9 +151,7 @@
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     /* Device layouts: the same address serves both. data-device is set by setupDeviceLayout(). */
     #btn-cam-toggle { bottom: calc(var(--dock-h, 140px) + 0.75rem) !important; }
-    #cam-panel { bottom: calc(var(--dock-h, 140px) + 4.25rem) !important; }
     main { padding-bottom: calc(var(--dock-h, 140px) + 1.5rem) !important; }
-    [data-device="mobile"] #cam-panel { width: 9.5rem !important; }
     [data-device="mobile"] #teleprompter-container { gap: 1.5rem; }
     [data-device="mobile"] #dock { padding-left: 0.5rem; padding-right: 0.5rem; }
     [data-device="mobile"] #btn-cue-print { display: none; }
@@ -219,6 +217,15 @@
 
   <!-- ==================== CENTERED TELEPROMPTER MAIN STAGE (max-w-840px) ==================== -->
   <main class="flex-1 w-full max-w-[840px] mx-auto px-4 sm:px-6 pt-6 pb-36">
+    <!-- Language bar: speech and coaching languages are visible on the main screen -->
+    <div id="lang-bar" class="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-2xl bg-white border border-slate-200 shadow-sm">
+      <label class="flex flex-col gap-1 text-[11px] font-bold text-slate-600">🎤 스피치 언어 (내가 말할 언어)
+        <select id="lang-target" class="p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800"><option value="en-GB">🇬🇧 영국 영어</option><option value="en-US">🇺🇸 미국 영어</option><option value="ko-KR">🇰🇷 한국어</option><option value="ja-JP">🇯🇵 일본어</option><option value="es-ES">🇪🇸 스페인어</option><option value="fr-FR">🇫🇷 프랑스어</option><option value="de-DE">🇩🇪 독일어</option><option value="zh-CN">🇨🇳 중국어</option></select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] font-bold text-slate-600">🎧 코칭 언어 (멘토 설명 언어)
+        <select id="lang-mentor" class="p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800"><option value="en-GB">🇬🇧 영국 영어</option><option value="en-US">🇺🇸 미국 영어</option><option value="ko-KR">🇰🇷 한국어</option><option value="ja-JP">🇯🇵 일본어</option><option value="es-ES">🇪🇸 스페인어</option><option value="fr-FR">🇫🇷 프랑스어</option><option value="de-DE">🇩🇪 독일어</option><option value="zh-CN">🇨🇳 중국어</option></select>
+      </label>
+    </div>
 
     <!-- Script Title & Clean Metadata -->
     <div class="mb-5">
@@ -295,19 +302,6 @@
           </div>
           <span id="dock-progress-text" class="text-[11px] font-mono font-bold text-slate-600">섹션 1/6 · 00:00 / 03:30</span>
         </div>
-      </div>
-
-      <!-- Stage cue card: cues for the active sentence, with scenarios and print sheet -->
-      <div id="cue-card" class="mb-3 p-3 rounded-2xl bg-slate-900 text-slate-100 text-xs shadow-sm">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <span class="font-extrabold text-amber-300">🎬 무대 큐 카드</span>
-          <div class="flex gap-1.5">
-            <button id="btn-cue-scenarios" type="button" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold transition">🎭 상황별 질문</button>
-            <button id="btn-cue-print" type="button" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold transition">🖨️ 큐시트 인쇄</button>
-          </div>
-        </div>
-        <div id="cue-card-body" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
-        <div id="scenario-panel" class="hidden mt-3 space-y-2"></div>
       </div>
 
       <!-- Dock Buttons -->
@@ -639,14 +633,35 @@
   <!-- ==================== APPLICATION JAVASCRIPT ==================== -->
   <!-- Camera: practice video synced with playback -->
   <button id="btn-cam-toggle" type="button" class="fixed right-3 bottom-24 z-40 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md transition">📹 카메라</button>
-  <div id="cam-panel" class="hidden fixed right-3 bottom-36 z-40 w-48 sm:w-60 rounded-2xl bg-slate-900 shadow-xl border border-slate-700 overflow-hidden">
-    <div class="flex items-center justify-between px-2.5 py-1.5 bg-slate-800 text-[11px] font-bold text-slate-200">
-      <span id="cam-status">카메라 켜짐</span>
-      <button id="btn-cam-close" type="button" class="text-slate-300 hover:text-white" aria-label="카메라 끄기">✕</button>
+  <!-- Full-screen camera stage: video with the stage cue card at the bottom -->
+  <div id="stage-overlay" class="hidden fixed inset-0 z-[45] bg-black flex flex-col">
+    <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-black/70 text-white text-xs">
+      <span id="cam-status" class="font-bold">카메라 켜짐</span>
+      <div class="flex flex-wrap gap-1.5">
+        <button id="btn-stage-play" type="button" class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 font-bold transition">▶ 재생</button>
+        <button id="btn-stage-stop" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 font-bold transition">■ 정지</button>
+        <button id="btn-cam-review" type="button" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 font-bold transition">📹 녹화 확인</button>
+        <button id="btn-cam-close" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 font-bold transition">✕ 카메라 끄기</button>
+      </div>
     </div>
-    <video id="cam-video" autoplay muted playsinline class="w-full aspect-video bg-black object-cover -scale-x-100"></video>
-    <button id="btn-cam-review" type="button" class="hidden w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition">📹 녹화 확인</button>
+    <div class="relative flex-1 min-h-0">
+      <video id="cam-video" autoplay muted playsinline class="absolute inset-0 w-full h-full object-cover -scale-x-100"></video>
+    </div>
+    <div class="max-h-[42vh] overflow-y-auto bg-slate-900/95">
+      <div id="cue-card" class="mb-3 p-3 rounded-2xl bg-slate-900 text-slate-100 text-xs shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span class="font-extrabold text-amber-300">🎬 무대 큐 카드</span>
+          <div class="flex gap-1.5">
+            <button id="btn-cue-scenarios" type="button" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold transition">🎭 상황별 질문</button>
+            <button id="btn-cue-print" type="button" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold transition">🖨️ 큐시트 인쇄</button>
+          </div>
+        </div>
+        <div id="cue-card-body" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+        <div id="scenario-panel" class="hidden mt-3 space-y-2"></div>
+      </div>
+    </div>
   </div>
+
   <script src="/samples.js"></script>
   <script>
     /**
@@ -1123,7 +1138,29 @@
       return safe.replace(re, `<strong class="font-extrabold text-slate-950 bg-amber-100/80 px-1 rounded">$1</strong>`);
     }
 
+    // Language bar: keeps the main-screen selects, settings and the active script in sync.
+    function syncLangBar() {
+      const t = document.getElementById('lang-target');
+      const m = document.getElementById('lang-mentor');
+      if (!t || !m) return;
+      t.value = (scriptData && scriptData.targetLang) || config.targetLang;
+      m.value = (scriptData && scriptData.mentorLang) || config.mentorLang;
+    }
+
+    function setLanguages(target, mentor) {
+      config.targetLang = target;
+      config.mentorLang = mentor;
+      if (scriptData) { scriptData.targetLang = target; scriptData.mentorLang = mentor; }
+      ['cfg-target-lang', 'upload-target-lang'].forEach(id => { const el = document.getElementById(id); if (el) el.value = target; });
+      ['cfg-mentor-lang', 'upload-mentor-lang'].forEach(id => { const el = document.getElementById(id); if (el) el.value = mentor; });
+      syncLangBar();
+      const hint = scriptData && scriptData.scenes && scriptData.scenes.length
+        ? ' 스피치 언어를 바꾸었다면 원고를 다시 생성하세요.' : '';
+      showToast(`스피치 ${(LANG_META[target] || {}).name || target} · 코칭 ${(LANG_META[mentor] || {}).name || mentor}.${hint}`, 'success');
+    }
+
     function updateHeaderMeta() {
+      syncLangBar();
       const env = getCurrentEnv();
       const lang = LANG_META[scriptData.targetLang || config.targetLang] || { short: config.targetLang };
       const totalSec = estimateScriptDurationSec(scriptData);
@@ -1502,7 +1539,7 @@ ${parts.join('')}
       try {
         camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 } }, audio: false });
         document.getElementById('cam-video').srcObject = camStream;
-        document.getElementById('cam-panel').classList.remove('hidden');
+        document.getElementById('stage-overlay').classList.remove('hidden');
         document.getElementById('cam-status').textContent = '카메라 켜짐 · 재생 시 녹화';
       } catch (e) {
         showToast('카메라 권한을 허용해 주세요.', 'error');
@@ -1514,7 +1551,7 @@ ${parts.join('')}
       if (camStream) camStream.getTracks().forEach(t => t.stop());
       camStream = null;
       document.getElementById('cam-video').srcObject = null;
-      document.getElementById('cam-panel').classList.add('hidden');
+      document.getElementById('stage-overlay').classList.add('hidden');
     }
 
     function startCamRecording() {
@@ -2546,6 +2583,11 @@ ${parts.join('')}
     document.getElementById('btn-cue-print').addEventListener('click', printCueSheet);
     renderCueCard(0, 0);
     setupDeviceLayout();
+    document.getElementById('lang-target').addEventListener('change', (e) => setLanguages(e.target.value, document.getElementById('lang-mentor').value));
+    document.getElementById('lang-mentor').addEventListener('change', (e) => setLanguages(document.getElementById('lang-target').value, e.target.value));
+    document.getElementById('btn-stage-play').addEventListener('click', () => document.getElementById('btn-dock-play').click());
+    document.getElementById('btn-stage-stop').addEventListener('click', () => document.getElementById('btn-dock-stop').click());
+    syncLangBar();
 
     // Settings Drawer
     function openSettingsDrawer() {
