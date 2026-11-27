@@ -4,6 +4,7 @@ import health from './routes/health.js';
 import script from './routes/script.js';
 import coach from './routes/coach.js';
 import qa from './routes/qa.js';
+import scenarios from './routes/scenarios.js';
 import tts from './routes/tts.js';
 import history from './routes/history.js';
 import { json } from './util.js';
@@ -13,6 +14,7 @@ const ROUTES = {
   '/api/script': script,
   '/api/coach': coach,
   '/api/qa': qa,
+  '/api/scenarios': scenarios,
   '/api/tts': tts,
   '/api/history': history,
 };

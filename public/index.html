@@ -288,6 +288,19 @@
         </div>
       </div>
 
+      <!-- Stage cue card: cues for the active sentence, with scenarios and print sheet -->
+      <div id="cue-card" class="mb-3 p-3 rounded-2xl bg-slate-900 text-slate-100 text-xs shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span class="font-extrabold text-amber-300">🎬 무대 큐 카드</span>
+          <div class="flex gap-1.5">
+            <button id="btn-cue-scenarios" type="button" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold transition">🎭 상황별 질문</button>
+            <button id="btn-cue-print" type="button" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold transition">🖨️ 큐시트 인쇄</button>
+          </div>
+        </div>
+        <div id="cue-card-body" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+        <div id="scenario-panel" class="hidden mt-3 space-y-2"></div>
+      </div>
+
       <!-- Dock Buttons -->
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
@@ -1237,7 +1250,129 @@
       });
     }
 
+    // ---------------------------------------------------------------------------
+    // STAGE CUE CARD, REAL-SITUATION PROMPTS, PRINTABLE CUE SHEET
+    // ---------------------------------------------------------------------------
+    function renderCueCard(sIdx, segIdx) {
+      const body = document.getElementById('cue-card-body');
+      if (!body || !scriptData || !scriptData.scenes) return;
+      const scene = scriptData.scenes[sIdx];
+      const seg = scene && scene.segments && scene.segments[segIdx];
+      if (!seg) { body.innerHTML = ''; return; }
+      const pause = seg.pauseAfterMs ? `${(seg.pauseAfterMs / 1000).toFixed(1)}초` : '없음';
+      const tone = seg.intonation === 'up' ? '↗ 올림' : '↘ 내림';
+      const emph = (seg.emphasisWords || []).join(' / ') || '없음';
+      const cells = [
+        ['섹션', `${scene.badge || `Section ${sIdx + 1}`} · 문장 ${segIdx + 1}/${scene.segments.length}`],
+        ['멈춤', `${pause} (문장 뒤)`],
+        ['억양', tone],
+        ['제스처', seg.gestureCue || '—'],
+        ['슬라이드', seg.slideCue || '—'],
+        ['강조', emph],
+      ];
+      body.innerHTML = cells.map(([k, v]) => `
+        <div class="p-2 rounded-xl bg-slate-800">
+          <div class="text-[10px] font-bold text-slate-400">${k}</div>
+          <div class="font-semibold text-slate-100 mt-0.5 leading-snug">${escapeHtml(v)}</div>
+        </div>`).join('');
+    }
+
+    async function generateScenarios() {
+      const panel = document.getElementById('scenario-panel');
+      if (!scriptData || !scriptData.scenes || !scriptData.scenes.length) {
+        showToast('먼저 원고를 생성해 주세요.', 'warn');
+        return;
+      }
+      panel.classList.remove('hidden');
+      panel.innerHTML = '<p class="text-slate-300">상황별 질문을 만드는 중...</p>';
+      const text = scriptData.scenes.flatMap(sc => sc.segments.map(g => g.text)).join(' ');
+      try {
+        const res = await fetch('/api/scenarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: scriptData.title,
+            text: text.slice(0, 8000),
+            targetLang: scriptData.targetLang || config.targetLang,
+            mentorLang: scriptData.mentorLang || config.mentorLang,
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderScenarios(data.scenarios || []);
+      } catch (e) {
+        panel.innerHTML = '<p class="text-rose-300">상황별 질문을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.</p>';
+      }
+    }
+
+    function renderScenarios(list) {
+      const panel = document.getElementById('scenario-panel');
+      if (!list.length) {
+        panel.innerHTML = '<p class="text-slate-300">생성된 상황이 없습니다.</p>';
+        return;
+      }
+      panel.innerHTML = list.map((sc, i) => `
+        <div class="p-2.5 rounded-xl bg-slate-800">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-extrabold text-amber-300">${escapeHtml(sc.kind)} · ${escapeHtml(sc.setting)}</span>
+            <button type="button" data-scn-listen="${i}" class="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition">🔊 듣기</button>
+          </div>
+          <p class="mt-1 text-slate-100 font-semibold">"${escapeHtml(sc.promptTarget)}"</p>
+          <p class="mt-1 text-slate-400">${escapeHtml(sc.promptMentor)}</p>
+          <p class="mt-1 text-emerald-300">💡 ${escapeHtml(sc.responseHint)}</p>
+        </div>`).join('');
+      panel.querySelectorAll('[data-scn-listen]').forEach(btn => btn.addEventListener('click', async () => {
+        const sc = list[Number(btn.dataset.scnListen)];
+        const sid = ++playbackSessionId;
+        await speakNatural(sc.promptTarget, scriptData.targetLang || config.targetLang, sid, false, 'Kore');
+      }));
+    }
+
+    function printCueSheet() {
+      if (!scriptData || !scriptData.scenes) return;
+      const speech = (LANG_META[scriptData.targetLang] || {}).name || scriptData.targetLang;
+      const coach = (LANG_META[scriptData.mentorLang] || {}).name || scriptData.mentorLang;
+      const env = (ENVIRONMENTS[scriptData.environmentId] || {}).name || scriptData.environmentId;
+      const parts = [];
+      scriptData.scenes.forEach((scene, sIdx) => {
+        parts.push(`<h2>${escapeHtml(scene.badge || `Section ${sIdx + 1}`)} · ${escapeHtml(scene.title || '')}</h2>`);
+        if (scene.mentorBriefing) parts.push(`<p class="brief">${escapeHtml(scene.mentorBriefing)}</p>`);
+        parts.push('<table><thead><tr><th>#</th><th>원고</th><th>멈춤</th><th>억양</th><th>제스처</th><th>슬라이드</th><th>강조</th></tr></thead><tbody>');
+        scene.segments.forEach((seg, i) => {
+          parts.push(`<tr><td>${sIdx + 1}-${i + 1}</td><td>${escapeHtml(seg.text)}</td>` +
+            `<td>${seg.pauseAfterMs ? (seg.pauseAfterMs / 1000).toFixed(1) + 's' : '-'}</td>` +
+            `<td>${seg.intonation === 'up' ? '↗' : '↘'}</td>` +
+            `<td>${escapeHtml(seg.gestureCue || '')}</td><td>${escapeHtml(seg.slideCue || '')}</td>` +
+            `<td>${escapeHtml((seg.emphasisWords || []).join(' / '))}</td></tr>`);
+        });
+        parts.push('</tbody></table>');
+      });
+      const win = window.open('', '_blank');
+      if (!win) {
+        showToast('팝업이 차단되었습니다. 허용한 뒤 다시 눌러 주세요.', 'warn');
+        return;
+      }
+      win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<title>${escapeHtml(scriptData.title || '발표 큐시트')}</title>
+<style>
+body{font-family:system-ui,sans-serif;color:#0f172a;margin:24px;font-size:12px}
+h1{font-size:18px;margin:0 0 4px} .meta{color:#475569;margin-bottom:12px}
+h2{font-size:14px;margin:18px 0 4px;border-bottom:2px solid #0f172a;padding-bottom:3px}
+.brief{color:#334155;font-style:italic;margin:4px 0 8px}
+table{width:100%;border-collapse:collapse} th,td{border:1px solid #cbd5e1;padding:5px;vertical-align:top;text-align:left}
+th{background:#e2e8f0}
+@media print{@page{size:A4 landscape;margin:12mm}}
+</style></head><body>
+<h1>${escapeHtml(scriptData.title || '발표 큐시트')}</h1>
+<div class="meta">스피치 언어: ${escapeHtml(speech)} · 코칭 언어: ${escapeHtml(coach)} · 환경: ${escapeHtml(env)}</div>
+${parts.join('')}
+<script>window.onload=function(){window.print();};<\/script>
+</body></html>`);
+      win.document.close();
+    }
+
     function highlightAndScrollActive(sIdx, segIdx) {
+      renderCueCard(sIdx, segIdx);
       activeSceneIndex = sIdx;
       activeSegmentIndex = segIdx;
       elTeleprompter.querySelectorAll('.prompter-seg').forEach(el => {
@@ -2385,6 +2520,9 @@
     document.getElementById('btn-cam-toggle').addEventListener('click', toggleCamera);
     document.getElementById('btn-cam-close').addEventListener('click', stopCamera);
     document.getElementById('btn-cam-review').addEventListener('click', showCamReview);
+    document.getElementById('btn-cue-scenarios').addEventListener('click', generateScenarios);
+    document.getElementById('btn-cue-print').addEventListener('click', printCueSheet);
+    renderCueCard(0, 0);
 
     // Settings Drawer
     function openSettingsDrawer() {
