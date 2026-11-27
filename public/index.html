@@ -1211,7 +1211,17 @@
         const out = tpl.replace(/\{(\d+)\}/g, (_, n) => resolveCapture(m[Number(n) + 1]));
         return ko.replace(text, () => out);
       }
+      // Cue text built as "🖐️ gesture📊 slide, 🖐️ ..." is translated piece by piece at each icon.
+      const pieces = text.split(/(?=\u{1F590}\uFE0F|\u{1F4CA})/u);
+      if (pieces.length > 1 || /^(\u{1F590}\uFE0F|\u{1F4CA})/u.test(text)) {
+        return ko.replace(text, () => pieces.map(translateCuePiece).join(''));
+      }
       return ko;
+    }
+    function translateCuePiece(piece) {
+      const m = piece.match(/^(\u{1F590}\uFE0F|\u{1F4CA})?(\s*)([\s\S]*?)([\s,、]*)$/u);
+      if (!m) return piece;
+      return (m[1] || '') + (m[2] || '') + uiLookup(m[3].trim()) + (m[4] || '');
     }
 
     function translateTextNode(node) {
