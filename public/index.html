@@ -1584,6 +1584,7 @@ th{background:#e2e8f0}
 <div class="meta">스피치 언어: ${escapeHtml(speech)} · 코칭 언어: ${escapeHtml(coach)} · 환경: ${escapeHtml(env)}</div>
 ${parts.join('')}
 <script>window.onload=function(){window.print();};<\/script>
+<a href="/account.html" style="position:fixed;bottom:16px;left:16px;z-index:9999;background:#4338ca;color:white;padding:10px 14px;border-radius:12px;font:600 14px system-ui;text-decoration:none;box-shadow:0 4px 12px #0003">내 계정 / 발표 환경</a>
 </body></html>`));
       win.document.close();
     }
@@ -2541,12 +2542,18 @@ ${parts.join('')}
       }
 
       lastFeedbackText = feedback;
-      // Save the attempt to Supabase history when it is configured (fire and forget)
-      fetch('/api/history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneTitle: qaId ? 'Q&A' : scene.title, spoken, wpm, energy: energyLabel, feedback })
-      }).catch(() => {});
+      // Save only for an authenticated account; never send private practice data anonymously.
+      const savedSession = sessionStorage.getItem('speech_session');
+      if (savedSession) {
+        try {
+          const accessToken = JSON.parse(savedSession).access_token;
+          if (accessToken) fetch('/api/history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken },
+            body: JSON.stringify({ sceneTitle: qaId ? 'Q&A' : scene.title, spoken, wpm, energy: energyLabel, feedback })
+          }).catch(() => {});
+        } catch (e) { console.warn('Practice history session unavailable'); }
+      }
       document.getElementById('res-feedback-text').textContent = feedback;
 
       if (qaId) {
