@@ -28,3 +28,14 @@ npm run deploy    # 배포
 
 ## 키가 없을 때
 AI 키가 없으면 규칙 기반 데모 모드로 동작합니다. PDF와 사진 첨부, Q&A 질문 생성, 뉴럴 음성, 기록 저장은 해당 키가 있어야 켜집니다.
+
+
+## Personal accounts and onboarding (2026-11-27)
+- Account UI: `/account.html` (email sign-up/sign-in and multiple presentation profiles).
+- Apply `supabase/migrations/20261127_auth_profiles.sql` to the intended Supabase project BEFORE enabling the feature.
+- Set Cloudflare Worker secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (Supabase publishable/anon key). Never expose the service-role key to the browser.
+- Configure Supabase Auth email confirmation and Site URL `https://speech-mentor-ai.com` plus allowed redirect URLs.
+- `/api/history` and `/api/profile` now require a Supabase access token and use the caller's token for PostgREST, with per-user RLS.
+- Previous unattributed practice history remains unassigned and inaccessible to regular users. Do not automatically migrate it into any user's account.
+- The existing main page's history calls must be updated to pass the signed-in session token before authenticated history works there. The new account page is currently a separate entry point; onboarding preferences are not yet automatically applied to coaching.
+- Do not consider production complete until database migration, secret configuration, end-to-end account tests, cross-account isolation tests and Cloudflare deployment verification are finished.
