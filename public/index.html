@@ -149,6 +149,15 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    /* Device layouts: the same address serves both. data-device is set by setupDeviceLayout(). */
+    #btn-cam-toggle { bottom: calc(var(--dock-h, 140px) + 0.75rem) !important; }
+    #cam-panel { bottom: calc(var(--dock-h, 140px) + 4.25rem) !important; }
+    main { padding-bottom: calc(var(--dock-h, 140px) + 1.5rem) !important; }
+    [data-device="mobile"] #cam-panel { width: 9.5rem !important; }
+    [data-device="mobile"] #teleprompter-container { gap: 1.5rem; }
+    [data-device="mobile"] #dock { padding-left: 0.5rem; padding-right: 0.5rem; }
+    [data-device="mobile"] #btn-cue-print { display: none; }
+    [data-device="desktop"] main { max-width: 960px !important; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-indigo-100 selection:text-indigo-900">
@@ -271,7 +280,7 @@
   </main>
 
   <!-- ==================== FLOATING BOTTOM CONTROL DOCK ==================== -->
-  <div class="fixed bottom-4 inset-x-0 z-40 px-3 sm:px-6 pointer-events-none">
+  <div id="dock" class="fixed bottom-4 inset-x-0 z-40 px-3 sm:px-6 pointer-events-none">
     <div class="max-w-[820px] mx-auto bg-white/95 backdrop-blur-lg border border-slate-200/90 shadow-2xl shadow-slate-900/10 rounded-2xl p-2.5 sm:p-3 pointer-events-auto flex flex-col gap-2">
       <!-- Thin Progress Line -->
       <div class="flex items-center gap-3 px-1">
@@ -1369,6 +1378,19 @@ ${parts.join('')}
 <script>window.onload=function(){window.print();};<\/script>
 </body></html>`);
       win.document.close();
+    }
+
+    // Device layout: one address, two layouts. Mobile when the screen is narrow or the pointer is touch.
+    function setupDeviceLayout() {
+      const root = document.documentElement;
+      const mq = window.matchMedia('(max-width: 640px), (pointer: coarse)');
+      const apply = () => { root.dataset.device = mq.matches ? 'mobile' : 'desktop'; };
+      apply();
+      if (mq.addEventListener) mq.addEventListener('change', apply);
+      const dock = document.getElementById('dock');
+      if (dock && 'ResizeObserver' in window) {
+        new ResizeObserver(() => root.style.setProperty('--dock-h', `${dock.offsetHeight}px`)).observe(dock);
+      }
     }
 
     function highlightAndScrollActive(sIdx, segIdx) {
@@ -2523,6 +2545,7 @@ ${parts.join('')}
     document.getElementById('btn-cue-scenarios').addEventListener('click', generateScenarios);
     document.getElementById('btn-cue-print').addEventListener('click', printCueSheet);
     renderCueCard(0, 0);
+    setupDeviceLayout();
 
     // Settings Drawer
     function openSettingsDrawer() {
