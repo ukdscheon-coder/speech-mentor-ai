@@ -9,6 +9,7 @@ import tts from './routes/tts.js';
 import history from './routes/history.js';
 import profile from './routes/profile.js';
 import authConfig from './routes/auth-config.js';
+import checkout from './routes/checkout.js';
 import { json } from './util.js';
 
 const ROUTES = {
@@ -21,6 +22,7 @@ const ROUTES = {
   '/api/history': history,
   '/api/profile': profile,
   '/api/auth-config': authConfig,
+  '/api/billing/checkout': checkout,
 };
 
 export default {
