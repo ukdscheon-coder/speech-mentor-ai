@@ -8,6 +8,7 @@ import scenarios from './routes/scenarios.js';
 import tts from './routes/tts.js';
 import history from './routes/history.js';
 import profile from './routes/profile.js';
+import authConfig from './routes/auth-config.js';
 import { json } from './util.js';
 
 const ROUTES = {
@@ -19,6 +20,7 @@ const ROUTES = {
   '/api/tts': tts,
   '/api/history': history,
   '/api/profile': profile,
+  '/api/auth-config': authConfig,
 };
 
 export default {
