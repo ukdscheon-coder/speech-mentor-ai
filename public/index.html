@@ -1105,7 +1105,15 @@
       });
     }
 
+    // Converts text to the language it will be spoken in. Korean that cannot be translated is not read aloud.
+    function speechTextFor(text, langCode) {
+      if (!text || !/[\uAC00-\uD7A3]/.test(text) || String(langCode || '').startsWith('ko')) return text;
+      const out = uiLookup(text, langCode);
+      return /[\uAC00-\uD7A3]/.test(out) ? '' : out;
+    }
+
     async function speakNatural(text, langCode, sessionId, isMentor = false, overrideVoice = null) {
+      text = speechTextFor(text, langCode);
       if (sessionId !== playbackSessionId || !text || !text.trim()) return;
       if (config.voiceEngine === 'browser') {
         elDockEq.classList.remove('eq-paused');
@@ -1193,35 +1201,35 @@
       const d = window.UI_I18N || {};
       return (d[lang] || {})[text] || (d['en-GB'] || {})[text] || null;
     }
-    function resolveCapture(c) {
+    function resolveCapture(c, lang) {
       const t = (c || '').trim();
-      return (t && exactI18n(t, uiLang)) || c;
+      return (t && exactI18n(t, lang)) || c;
     }
-    function uiLookup(ko) {
-      if (uiLang === 'ko-KR') return ko;
+    function uiLookup(ko, lang = uiLang) {
+      if (lang === 'ko-KR') return ko;
       const text = ko.trim();
       if (!text) return ko;
-      const exact = exactI18n(text, uiLang);
+      const exact = exactI18n(text, lang);
       if (exact) return ko.replace(text, () => exact);
       for (const p of i18nPatterns()) {
         const m = p.re.exec(text);
         if (!m) continue;
-        const tpl = exactI18n(p.key, uiLang);
+        const tpl = exactI18n(p.key, lang);
         if (!tpl) continue;
-        const out = tpl.replace(/\{(\d+)\}/g, (_, n) => resolveCapture(m[Number(n) + 1]));
+        const out = tpl.replace(/\{(\d+)\}/g, (_, n) => resolveCapture(m[Number(n) + 1], lang));
         return ko.replace(text, () => out);
       }
       // Cue text built as "🖐️ gesture📊 slide, 🖐️ ..." is translated piece by piece at each icon.
       const pieces = text.split(/(?=\u{1F590}\uFE0F|\u{1F4CA})/u);
       if (pieces.length > 1 || /^(\u{1F590}\uFE0F|\u{1F4CA})/u.test(text)) {
-        return ko.replace(text, () => pieces.map(translateCuePiece).join(''));
+        return ko.replace(text, () => pieces.map(p => translateCuePiece(p, lang)).join(''));
       }
       return ko;
     }
-    function translateCuePiece(piece) {
+    function translateCuePiece(piece, lang = uiLang) {
       const m = piece.match(/^(\u{1F590}\uFE0F|\u{1F4CA})?(\s*)([\s\S]*?)([\s,、]*)$/u);
       if (!m) return piece;
-      return (m[1] || '') + (m[2] || '') + uiLookup(m[3].trim()) + (m[4] || '');
+      return (m[1] || '') + (m[2] || '') + uiLookup(m[3].trim(), lang) + (m[4] || '');
     }
 
     function translateTextNode(node) {
@@ -2515,7 +2523,7 @@ ${parts.join('')}
       } catch (e) {}
 
       if (!feedback) {
-        feedback = `${env.name} 환경 권장 속도(${env.wpmMin}~${env.wpmMax} WPM) 대비 분당 ${wpm}단어로 말씀하셨습니다. 핵심 키워드 앞에서 0.3초만 숨을 고르고 성량 변화(${energyLabel})를 조금 더 살려주시면 전달력이 크게 올라갑니다.`;
+        feedback = uiLookup(`${env.name} 환경 권장 속도(${env.wpmMin}~${env.wpmMax} WPM) 대비 분당 ${wpm}단어로 말씀하셨습니다. 핵심 키워드 앞에서 0.3초만 숨을 고르고 성량 변화(${energyLabel})를 조금 더 살려주시면 전달력이 크게 올라갑니다.`, scriptData.mentorLang || config.mentorLang);
       }
 
       lastFeedbackText = feedback;
