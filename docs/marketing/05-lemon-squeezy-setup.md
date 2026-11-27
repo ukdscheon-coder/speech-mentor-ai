@@ -1,5 +1,7 @@
 # Speech Mentor AI의 Lemon Squeezy 설정
 
+> 보관용 문서입니다. Lemon Squeezy는 2026년 11월 16일 신규 스토어 등록을 중단했습니다. 신규 출시 준비는 [Paddle 테스트 설정](06-paddle-setup.md)을 참조하세요.
+
 ## 테스트 상품 등록
 
 1. Lemon Squeezy 대시보드에서 스토어를 만들고 Test mode를 켭니다.

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Speech Mentor AI · Test checkout</title>
+</head>
+<body>
+  <main>
+    <h1>Speech Mentor AI test checkout</h1>
+    <p id="status" role="status">Checking availability…</p>
+    <p><a href="/account">Return to your account</a></p>
+  </main>
+  <script type="module">
+    const status = document.getElementById('status');
+    try {
+      const response = await fetch('/api/billing/sandbox-config');
+      if (!response.ok) throw Error();
+      const { token } = await response.json();
+      const script = document.createElement('script');
+      await new Promise((resolve, reject) => {
+        script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.append(script);
+      });
+      Paddle.Environment.set('sandbox');
+      Paddle.Initialize({ token, checkout: { settings: { successUrl: location.origin + '/account' } } });
+      status.textContent = 'Sandbox only. Use a Paddle test card.';
+    } catch {
+      status.textContent = 'Test checkout is currently unavailable.';
+    }
+  </script>
+</body>
+</html>

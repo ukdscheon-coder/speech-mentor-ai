@@ -21,9 +21,9 @@ export default async function coach(request, env) {
     const out = await callClaude(env, {
       system: tutorPrompt(body.mentorLang || 'ko-KR'),
       content: [{ type: 'text', text: JSON.stringify({ kind, ...data }) }],
-      maxTokens: 400,
+      maxTokens: 900,
     });
-    const feedback = out.trim().slice(0, 600);
+    const feedback = out.trim();
     if (!feedback) throw new Error('Empty coaching output');
     return json({ source: 'claude', feedback });
   } catch (err) {

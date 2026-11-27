@@ -23,6 +23,14 @@ const ROUTES = {
   '/api/profile': profile,
   '/api/auth-config': authConfig,
   '/api/billing/checkout': checkout,
+  '/api/billing/sandbox-config': (request, env) => {
+    if (request.method !== 'GET') return json({ error: 'Use GET.' }, 405);
+    const token = env.PADDLE_SANDBOX_CLIENT_TOKEN;
+    if (env.BILLING_SANDBOX_ENABLED !== 'true' || !/^test_[a-z0-9]+$/i.test(token || '')) {
+      return json({ error: 'Test checkout is not available.' }, 503);
+    }
+    return json({ token });
+  },
 };
 
 export default {
