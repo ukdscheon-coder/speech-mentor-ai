@@ -1169,10 +1169,49 @@
     const I18N_OBSERVE = { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: I18N_ATTRS };
     let i18nObserver = null;
 
+    // Patterns: a key with {} matches any text, {#} matches a number. In the translation, {0}, {1}... take the matched parts.
+    const I18N_PATTERN_CACHE = { list: null };
+    function compileI18nPattern(key) {
+      let re = '^';
+      for (const part of key.split(/(\{#\}|\{\})/)) {
+        if (part === '{}') re += '([\\s\\S]*?)';
+        else if (part === '{#}') re += '([\\d.,:]+)';
+        else if (part) re += part.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+      }
+      return new RegExp(re + '$');
+    }
+    function i18nPatterns() {
+      if (!I18N_PATTERN_CACHE.list) {
+        const en = (window.UI_I18N || {})['en-GB'] || {};
+        I18N_PATTERN_CACHE.list = Object.keys(en).filter(k => /\{#?\}/.test(k))
+          .map(k => ({ key: k, re: compileI18nPattern(k) }))
+          .sort((a, b) => b.key.length - a.key.length); // longer, more specific patterns first
+      }
+      return I18N_PATTERN_CACHE.list;
+    }
+    function exactI18n(text, lang) {
+      const d = window.UI_I18N || {};
+      return (d[lang] || {})[text] || (d['en-GB'] || {})[text] || null;
+    }
+    function resolveCapture(c) {
+      const t = (c || '').trim();
+      return (t && exactI18n(t, uiLang)) || c;
+    }
     function uiLookup(ko) {
       if (uiLang === 'ko-KR') return ko;
-      const all = window.UI_I18N || {};
-      return (all[uiLang] || {})[ko] || (all['en-GB'] || {})[ko] || ko;
+      const text = ko.trim();
+      if (!text) return ko;
+      const exact = exactI18n(text, uiLang);
+      if (exact) return ko.replace(text, () => exact);
+      for (const p of i18nPatterns()) {
+        const m = p.re.exec(text);
+        if (!m) continue;
+        const tpl = exactI18n(p.key, uiLang);
+        if (!tpl) continue;
+        const out = tpl.replace(/\{(\d+)\}/g, (_, n) => resolveCapture(m[Number(n) + 1]));
+        return ko.replace(text, () => out);
+      }
+      return ko;
     }
 
     function translateTextNode(node) {
@@ -1180,9 +1219,14 @@
       if (!parent || /^(SCRIPT|STYLE)$/.test(parent.nodeName)) return;
       const current = node.nodeValue;
       if (!current || !current.trim()) return;
-      if (!i18nTextOrig.has(node)) i18nTextOrig.set(node, current.trim());
-      const next = current.match(/^\s*/)[0] + uiLookup(i18nTextOrig.get(node)) + current.match(/\s*$/)[0];
+      let rec = i18nTextOrig.get(node);
+      if (!rec || rec.shown !== current) {
+        rec = { orig: current.trim(), lead: current.match(/^\s*/)[0], tail: current.match(/\s*$/)[0] };
+        i18nTextOrig.set(node, rec);
+      }
+      const next = rec.lead + uiLookup(rec.orig) + rec.tail;
       if (next !== current) node.nodeValue = next;
+      rec.shown = next;
     }
 
     function translateAttrs(el) {
@@ -1190,12 +1234,33 @@
       for (const a of I18N_ATTRS) {
         const cur = el.getAttribute(a);
         if (cur === null) continue;
-        let rec = i18nAttrOrig.get(el);
-        if (!rec) { rec = {}; i18nAttrOrig.set(el, rec); }
-        if (!(a in rec)) rec[a] = cur.trim();
-        const next = uiLookup(rec[a]);
+        let map = i18nAttrOrig.get(el);
+        if (!map) { map = {}; i18nAttrOrig.set(el, map); }
+        let rec = map[a];
+        if (!rec || rec.shown !== cur) {
+          rec = { orig: cur.trim(), lead: cur.match(/^\s*/)[0], tail: cur.match(/\s*$/)[0] };
+          map[a] = rec;
+        }
+        const next = rec.lead + uiLookup(rec.orig) + rec.tail;
         if (next !== cur) el.setAttribute(a, next);
+        rec.shown = next;
       }
+    }
+
+    // Translates the text of an HTML string (used for the printed cue sheet).
+    function translateHtmlString(html) {
+      if (uiLang === 'ko-KR') return html;
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const walker = doc.createTreeWalker(doc.documentElement, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(n => {
+        if (/^(STYLE|SCRIPT)$/.test(n.parentNode.nodeName)) return;
+        const t = n.nodeValue;
+        if (t && t.trim()) n.nodeValue = t.replace(t.trim(), () => uiLookup(t.trim()));
+      });
+      doc.documentElement.setAttribute('lang', uiLang);
+      return '<!doctype html>' + doc.documentElement.outerHTML;
     }
 
     function translateSubtree(root) {
@@ -1472,7 +1537,7 @@
         showToast('팝업이 차단되었습니다. 허용한 뒤 다시 눌러 주세요.', 'warn');
         return;
       }
-      win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8">
+      win.document.write(translateHtmlString(`<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <title>${escapeHtml(scriptData.title || '발표 큐시트')}</title>
 <style>
 body{font-family:system-ui,sans-serif;color:#0f172a;margin:24px;font-size:12px}
@@ -1487,7 +1552,7 @@ th{background:#e2e8f0}
 <div class="meta">스피치 언어: ${escapeHtml(speech)} · 코칭 언어: ${escapeHtml(coach)} · 환경: ${escapeHtml(env)}</div>
 ${parts.join('')}
 <script>window.onload=function(){window.print();};<\/script>
-</body></html>`);
+</body></html>`));
       win.document.close();
     }
 
