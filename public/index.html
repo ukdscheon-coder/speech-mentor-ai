@@ -366,6 +366,10 @@
         <!-- Extracted / Pasted Text Area -->
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row gap-2 mb-2">
+              <select id="sample-select" aria-label="샘플 연설문 선택" class="flex-1 p-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800"></select>
+              <button id="btn-load-sample" type="button" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition">샘플 불러오기</button>
+            </div>
             <label for="input-raw-text" class="text-xs font-bold text-slate-700">원고 텍스트 (직접 입력 또는 파일에서 자동 추출)</label>
             <span id="text-stats-label" class="text-[11px] font-mono text-slate-500">0자 · 예상 0분 0초</span>
           </div>
@@ -611,6 +615,17 @@
   </div>
 
   <!-- ==================== APPLICATION JAVASCRIPT ==================== -->
+  <!-- Camera: practice video synced with playback -->
+  <button id="btn-cam-toggle" type="button" class="fixed right-3 bottom-24 z-40 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md transition">📹 카메라</button>
+  <div id="cam-panel" class="hidden fixed right-3 bottom-36 z-40 w-48 sm:w-60 rounded-2xl bg-slate-900 shadow-xl border border-slate-700 overflow-hidden">
+    <div class="flex items-center justify-between px-2.5 py-1.5 bg-slate-800 text-[11px] font-bold text-slate-200">
+      <span id="cam-status">카메라 켜짐</span>
+      <button id="btn-cam-close" type="button" class="text-slate-300 hover:text-white" aria-label="카메라 끄기">✕</button>
+    </div>
+    <video id="cam-video" autoplay muted playsinline class="w-full aspect-video bg-black object-cover -scale-x-100"></video>
+    <button id="btn-cam-review" type="button" class="hidden w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition">📹 녹화 확인</button>
+  </div>
+  <script src="/samples.js"></script>
   <script>
     /**
      * ============================================================================
@@ -1313,10 +1328,135 @@
       });
     }
 
+    // ---------------------------------------------------------------------------
+    // CAMERA SYNC: records the practice video from the moment playback starts and
+    // marks each sentence's start time so the review can jump to it.
+    // ---------------------------------------------------------------------------
+    let camStream = null;
+    let camSession = null; // { rec, timeline, startedAt } while recording
+    let camLast = null;    // { url, timeline } after the last recording
+
+    async function toggleCamera() {
+      if (camStream) { stopCamera(); return; }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('이 브라우저는 카메라를 지원하지 않습니다.', 'error');
+        return;
+      }
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 } }, audio: false });
+        document.getElementById('cam-video').srcObject = camStream;
+        document.getElementById('cam-panel').classList.remove('hidden');
+        document.getElementById('cam-status').textContent = '카메라 켜짐 · 재생 시 녹화';
+      } catch (e) {
+        showToast('카메라 권한을 허용해 주세요.', 'error');
+      }
+    }
+
+    function stopCamera() {
+      stopCamRecording();
+      if (camStream) camStream.getTracks().forEach(t => t.stop());
+      camStream = null;
+      document.getElementById('cam-video').srcObject = null;
+      document.getElementById('cam-panel').classList.add('hidden');
+    }
+
+    function startCamRecording() {
+      if (!camStream || !window.MediaRecorder) return;
+      const chunks = [];
+      const timeline = [];
+      const startedAt = performance.now();
+      const mime = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+      const rec = new MediaRecorder(camStream, { mimeType: mime });
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        if (!blob.size) return;
+        if (camLast) URL.revokeObjectURL(camLast.url);
+        camLast = { url: URL.createObjectURL(blob), timeline };
+        document.getElementById('btn-cam-review').classList.remove('hidden');
+        showToast('녹화가 저장되었습니다. "녹화 확인"을 눌러 제스처를 확인하세요.', 'success');
+      };
+      rec.start(1000);
+      camSession = { rec, timeline, startedAt };
+      document.getElementById('cam-status').textContent = '● 녹화 중';
+    }
+
+    function markCamSegment(sIdx, segIdx) {
+      if (!camSession || camSession.rec.state !== 'recording') return;
+      camSession.timeline.push({ sIdx, segIdx, at: (performance.now() - camSession.startedAt) / 1000 });
+    }
+
+    function stopCamRecording() {
+      if (camSession && camSession.rec.state !== 'inactive') camSession.rec.stop();
+      camSession = null;
+      if (camStream) document.getElementById('cam-status').textContent = '카메라 켜짐 · 재생 시 녹화';
+    }
+
+    function showCamReview() {
+      if (!camLast) return;
+      const old = document.getElementById('cam-review');
+      if (old) old.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'cam-review';
+      wrap.className = 'fixed inset-0 z-[60] bg-slate-900/70 flex items-center justify-center p-3';
+      const items = camLast.timeline.map((m) => {
+        const seg = scriptData.scenes[m.sIdx] && scriptData.scenes[m.sIdx].segments[m.segIdx];
+        const cue = seg ? (seg.gestureCue || '') : '';
+        return `<button type="button" data-cam-seek="${m.at}" class="w-full text-left p-2.5 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-xs">
+          <div class="font-extrabold text-slate-900">Section ${m.sIdx + 1} · 문장 ${m.segIdx + 1} · ${m.at.toFixed(1)}초</div>
+          <div class="text-slate-600 mt-0.5">${escapeHtml(cue || '제스처 안내 없음')}</div>
+        </button>`;
+      }).join('');
+      wrap.innerHTML = `<div class="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-3 border-b border-slate-200">
+          <span class="text-sm font-extrabold text-slate-900">📹 연습 녹화 확인</span>
+          <button type="button" id="btn-cam-review-close" class="p-2 rounded-xl hover:bg-slate-100 text-slate-500">✕</button>
+        </div>
+        <div class="grid md:grid-cols-2 gap-3 p-3 overflow-auto">
+          <video id="cam-review-video" src="${camLast.url}" controls playsinline class="w-full rounded-xl bg-black"></video>
+          <div class="flex flex-col gap-2 overflow-auto max-h-[60vh]">${items || '<p class="text-xs text-slate-500">표시할 구간이 없습니다.</p>'}</div>
+        </div>
+        <p class="px-3 pb-3 text-[11px] text-slate-500">영상은 이 기기에만 있으며 서버로 보내지 않습니다. 구간 시간은 녹화 시작 기준의 근사값입니다.</p>
+      </div>`;
+      document.body.appendChild(wrap);
+      wrap.querySelector('#btn-cam-review-close').addEventListener('click', () => wrap.remove());
+      wrap.querySelectorAll('[data-cam-seek]').forEach((btn) => btn.addEventListener('click', () => {
+        const v = document.getElementById('cam-review-video');
+        v.currentTime = parseFloat(btn.dataset.camSeek);
+        v.play().catch(() => {});
+      }));
+    }
+
+    // ---------------------------------------------------------------------------
+    // SAMPLE SPEECHES: fill the text and the matching settings, then generate as usual.
+    // ---------------------------------------------------------------------------
+    function populateSampleSelect() {
+      const sel = document.getElementById('sample-select');
+      if (!sel || !window.SPEECH_SAMPLES) return;
+      sel.innerHTML = window.SPEECH_SAMPLES.map((s) => `<option value="${s.id}">${escapeHtml(s.label)}</option>`).join('');
+    }
+
+    function loadSampleSpeech() {
+      const id = document.getElementById('sample-select').value;
+      const sample = (window.SPEECH_SAMPLES || []).find((s) => s.id === id);
+      if (!sample) return;
+      document.getElementById('input-raw-text').value = sample.text;
+      updateRawTextStats();
+      document.getElementById('upload-target-lang').value = sample.targetLang;
+      document.getElementById('upload-mentor-lang').value = sample.mentorLang;
+      config.environmentId = sample.environmentId;
+      elEnvSelect.value = sample.environmentId;
+      config.targetLang = sample.targetLang;
+      config.mentorLang = sample.mentorLang;
+      updateHeaderMeta();
+      showToast('샘플 설정을 불러왔습니다. "전체 원고 생성"을 누르세요.', 'success');
+    }
+
     function stopPlayback() {
       playbackSessionId++;
       isPlaying = false;
       isPaused = false;
+      stopCamRecording();
       if (currentAudioEl) { currentAudioEl.pause(); currentAudioEl.currentTime = 0; currentAudioEl = null; }
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       hideLiveBanner();
@@ -1328,6 +1468,7 @@
       stopPlayback();
 
       const sessionId = ++playbackSessionId;
+      if (camStream) startCamRecording();
       isPlaying = true;
       isPaused = false;
       updateDockButtons();
@@ -1363,6 +1504,7 @@
           const nextSeg = scene.segments[segIdx + 1] || scriptData.scenes[sIdx + 1]?.segments?.[0];
           if (nextSeg) prefetchSentenceAudio(nextSeg.text, targetLang, false);
 
+          markCamSegment(sIdx, segIdx);
           await speakNatural(seg.text, targetLang, sessionId, false);
           if (sessionId !== playbackSessionId) break;
           elDockEq.classList.add('eq-paused');
@@ -2238,6 +2380,11 @@
     document.getElementById('btn-clear-files').addEventListener('click', () => { attachedFiles = []; renderAttachedFiles(); });
     document.getElementById('input-raw-text').addEventListener('input', updateRawTextStats);
     document.getElementById('btn-generate-full-script').addEventListener('click', handleGenerateFullScript);
+    populateSampleSelect();
+    document.getElementById('btn-load-sample').addEventListener('click', loadSampleSpeech);
+    document.getElementById('btn-cam-toggle').addEventListener('click', toggleCamera);
+    document.getElementById('btn-cam-close').addEventListener('click', stopCamera);
+    document.getElementById('btn-cam-review').addEventListener('click', showCamReview);
 
     // Settings Drawer
     function openSettingsDrawer() {
